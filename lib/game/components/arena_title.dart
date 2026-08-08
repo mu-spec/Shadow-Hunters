@@ -1,10 +1,12 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../shadow_hunters_game.dart';
+
 /// Centers the "Shadow Hunters Game World" title text on screen.
 ///
 /// Uses Flutter's [TextPainter] so the layout always fits the current viewport.
-class ArenaTitle extends Component {
+class ArenaTitle extends Component with HasGameReference<ShadowHuntersGame> {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
