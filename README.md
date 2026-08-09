@@ -2,8 +2,13 @@
 
 A 2D fantasy action / physics archery game built with **Flutter + Flame** for **Android**.
 
-> **Status:** Phase 0A — Project Foundation. This milestone proves the project starts and that
-> Flame renders a game world, with menus and gameplay cleanly separated.
+> **Status:** Phase 0 + Phase 1 complete (audited) + R11–R18 fixes. Foundation + menus + settings + battlefield + Hunter. Arm64-only build.
+> movement (compact lower-left joystick) + **pull-back bow control** (aim starts by touching the
+> Hunter; shot fires opposite the drag direction, R10) + firing arrows with projectile physics.
+> GameWidget fills the screen; camera viewfinder anchored top-left at world origin (R6) with
+> smooth horizontal follow keeping the Hunter ~35% from the left and clamped to the world edges
+> (R7). Debug HUD hidden behind `showDebugHud`. Compact upper-right pause button. No enemies or
+> combat yet.
 
 ---
 
@@ -70,6 +75,16 @@ flutter test
 ```bash
 flutter build apk --release        # APK
 flutter build appbundle --release  # AAB
+```
+
+The app is configured to build **only for 64-bit ARM** (`arm64-v8a`) to keep the
+APK small and fast. This covers virtually all modern Android phones. Older
+32-bit devices and x86 emulators are not supported. To change this, edit
+`android/app/build.gradle` → `defaultConfig → ndk → abiFilters`.
+
+For per-architecture APKs (smallest per-device download):
+```bash
+flutter build apk --split-per-abi
 ```
 
 ---
