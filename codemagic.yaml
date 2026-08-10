@@ -24,12 +24,13 @@ workflows:
       - name: Run unit/widget tests
         script: flutter test
       - name: Build arm64-v8a release APK
-        script: flutter build apk --release
+        script: flutter build apk --release --split-per-abi
       - name: Build release AAB
         script: flutter build appbundle --release
     artifacts:
-      # The single APK is filtered by android/app/build.gradle.kts to ARM64.
-      - build/app/outputs/flutter-apk/app-release.apk
+      # Publish only the ARM64 split for device testing, never the universal APK.
+      - build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      # Keep the Play Store bundle as a separate artifact.
       - build/app/outputs/bundle/release/*.aab
     publishing:
       email:
