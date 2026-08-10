@@ -111,14 +111,18 @@ class ShadowHuntersGame extends FlameGame {
     // the Hunter's whole body, added to the WORLD so Flame converts
     // screen<->world coordinates for touch hit-testing automatically (accurate
     // even while the camera pans).
-    // Screen-space controls & HUD. The right half is the dedicated aim region;
-    // the left joystick and right aim drag can therefore receive separate
-    // pointers simultaneously.
-    final control = AimControl(aim: aim, onFire: fireShot)
-      ..position = Vector2(size.x / 2, 0)
-      ..size = Vector2(size.x / 2, size.y);
+    // Hunter-body pull aiming remains in the WORLD so Flame performs the
+    // camera-aware hit test. Movement remains in the viewport, allowing both
+    // fingers to operate independently.
+    final touchRect = hunter.aimTouchRect;
+    final control = AimControl(
+      aim: aim,
+      onFire: fireShot,
+      size: Vector2(touchRect.width, touchRect.height),
+    )
+      ..position = Vector2(touchRect.center.dx, touchRect.center.dy);
     aimControl = control;
-    camera.viewport.add(control);
+    await world.add(control);
 
     // Screen-space controls & HUD (unaffected by the camera).
     //
@@ -153,12 +157,6 @@ class ShadowHuntersGame extends FlameGame {
     if (size.y > 0 && worldHeight > 0) {
       camera.viewfinder.zoom =
           (size.y / worldHeight).clamp(0.4, 4.0).toDouble();
-    }
-    final control = aimControl;
-    if (control != null && control.isMounted) {
-      control
-        ..position = Vector2(size.x / 2, 0)
-        ..size = Vector2(size.x / 2, size.y);
     }
     _logDiagnostics('onGameResize');
   }
@@ -311,8 +309,13 @@ class ShadowHuntersGame extends FlameGame {
     // Block movement while paused (Flame already freezes arrow updates).
     hunter.moveDirection = paused ? 0 : joystick.horizontalDirection;
 
-    // AimControl is screen-space and stays fixed on the right half; it does
-    // not follow the Hunter or camera.
+    final control = aimControl;
+    if (control != null && control.isMounted) {
+      final rect = hunter.aimTouchRect;
+      control
+        ..position = Vector2(rect.center.dx, rect.center.dy)
+        ..size = Vector2(rect.width, rect.height);
+    }
 
     // When aiming, the Hunter faces the intended firing direction (not the
     // movement direction). Aiming takes precedence for facing.

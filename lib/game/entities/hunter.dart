@@ -45,6 +45,17 @@ class Hunter extends PositionComponent {
 
   HunterState get state => moveDirection == 0 ? HunterState.idle : HunterState.moving;
 
+  /// World-space touch bounds covering the corrected visible Hunter body with
+  /// a small mobile-friendly margin.
+  Rect get aimTouchRect => Rect.fromLTRB(
+        position.x - size.x / 2 - aimTouchMargin,
+        position.y - size.y - aimTouchMargin,
+        position.x + size.x / 2 + aimTouchMargin,
+        position.y + aimTouchMargin,
+      );
+
+  static const double aimTouchMargin = 10;
+
   /// The bow pivot is drawn at local `(0, -42)` from the feet; the string/nock
   /// sits 10 units back (opposite the firing direction) from the pivot, which
   /// is exactly where the drawn bowstring/arrow-nock is in [render].

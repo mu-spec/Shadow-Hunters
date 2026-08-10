@@ -8,17 +8,16 @@ import '../shadow_hunters_game.dart';
 
 /// Pull-back bow aim control.
 ///
-/// Invisible right-side landscape touch area for pull-back bow aiming.
-/// Dragging backward pulls the bow; the shot fires in the OPPOSITE direction
-/// of the drag. Uses [DragCallbacks] so the finger keeps being tracked after
-/// it moves within the dedicated aiming region.
+/// Invisible Hunter-body pull-back aiming area. Dragging backward pulls the
+/// bow; the shot fires in the OPPOSITE direction of the drag. Uses
+/// [DragCallbacks] so the finger keeps being tracked after leaving the body.
 class AimControl extends PositionComponent
     with HasGameReference<ShadowHuntersGame>, DragCallbacks {
   AimControl({
     required this.aim,
     this.onFire,
     Vector2? size,
-  }) : super(size: size ?? Vector2(96, 96), anchor: Anchor.topLeft);
+  }) : super(size: size ?? Vector2(96, 96), anchor: Anchor.center);
 
   final AimState aim;
   final void Function(ShotData)? onFire;
