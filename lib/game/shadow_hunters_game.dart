@@ -116,7 +116,7 @@ class ShadowHuntersGame extends FlameGame {
     final touchRect = hunter.aimTouchRect;
     aimControl = AimControl(
       aim: aim,
-      onFire: fire,
+      onFire: fireShot,
       size: Vector2(touchRect.width, touchRect.height),
     );
     aimControl.position.setFrom(_aimControlPosition);
@@ -162,18 +162,33 @@ class ShadowHuntersGame extends FlameGame {
   /// Fires one arrow from the hunter's bow using the released [AimState].
   /// Public so tests and callbacks can trigger a shot.
   Future<void> fire(AimState a) async {
-    final dir = Vector2(cos(a.worldAngle), -sin(a.worldAngle));
-    // Launch from the bow release point (shared with the trajectory preview)
-    // so the Arrow's rear nock begins exactly at the bowstring.
-    final start = hunter.arrowLaunchCenterFor(a.worldAngle);
-    final arrow = Arrow(position: start, velocity: dir * a.speed);
+    // Compatibility entry point for callers that explicitly fire current aim.
+    final shot = ShotData(
+      worldAngle: a.worldAngle,
+      power: a.power,
+      speed: a.speed,
+      facing: a.facing,
+      pullDistance: a.pullDistance,
+      draw: hunter.bowDraw,
+      launchCenter: hunter
+          .arrowLaunchCenterFor(a.worldAngle, draw: hunter.bowDraw)
+          .clone(),
+    );
+    await fireShot(shot);
+  }
+
+  Future<void> fireShot(ShotData shot) async {
+    final dir = Vector2(cos(shot.worldAngle), -sin(shot.worldAngle));
+    // Use the immutable release snapshot; aim.active may already be false.
+    final start = shot.launchCenter.clone();
+    final arrow = Arrow(position: start, velocity: dir * shot.speed);
     arrows.add(arrow);
     await world.add(arrow);
 
-    final deg = (a.worldAngle * 180 / pi).round();
+final deg = (shot.worldAngle * 180 / pi).round();
     lastShot =
-        'arrow #${arrows.length} angle $deg° power ${a.power.toStringAsFixed(2)} '
-        '(facing ${a.facing > 0 ? "R" : "L"})';
+        'arrow #${arrows.length} angle $deg° power ${shot.power.toStringAsFixed(2)} '
+          '(facing ${shot.facing > 0 ? "R" : "L"})';
   }
 
   /// Pauses the whole game simulation using Flame's engine pause. Freezes

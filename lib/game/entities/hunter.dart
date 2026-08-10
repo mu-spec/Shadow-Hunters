@@ -85,10 +85,13 @@ class Hunter extends PositionComponent {
   /// launch origin accounts for the draw so the released arrow is continuous
   /// with the nocked arrow. This is the single authoritative launch origin
   /// shared by the trajectory preview and the actual Arrow.
-  Vector2 arrowLaunchCenterFor(double angle) {
+  Vector2 arrowLaunchCenterFor(double angle, {double? draw}) {
     final dir = Vector2(cos(angle), -sin(angle));
-    // String/nock pulls back by bowDraw from the resting release point.
-    final nock = bowReleasePositionFor(angle) - dir * bowDraw;
+    // A supplied draw is used by release snapshots; otherwise preserve the
+    // normal live-aim behavior for rendering and previews.
+    final effectiveDraw = draw ?? bowDraw;
+    // String/nock pulls back by the captured/current draw.
+    final nock = bowReleasePositionFor(angle) - dir * effectiveDraw;
     return nock + dir * (arrowLength / 2);
   }
 

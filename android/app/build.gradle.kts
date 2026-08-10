@@ -28,9 +28,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Release artifacts target modern 64-bit ARM Android devices only.
+        // This applies to APKs and to native libraries packaged in the AAB.
         ndk {
-    abiFilters += "arm64-v8a"
-}
+            abiFilters += "arm64-v8a"
+        }
     }
 
     buildTypes {

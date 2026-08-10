@@ -27,7 +27,7 @@ class AimControl extends PositionComponent
   }) : super(size: size ?? Vector2(96, 96), anchor: Anchor.center);
 
   final AimState aim;
-  final void Function(AimState)? onFire;
+  final void Function(ShotData)? onFire;
 
   /// Touch position (local coords) where the drag started.
   Vector2? _startLocal;
@@ -39,14 +39,11 @@ class AimControl extends PositionComponent
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
     if (game.paused) return;
-    // Only begin aiming if the initial touch lands on the Hunter's full body.
-    // `localPosition` is the touch in this component's local frame, and the
-    // component is sized/positioned to the full body rect (world component, so
-    // Flame handles the camera coordinate conversion automatically).
-    final lp = event.localPosition;
-    if (lp.x.abs() > size.x / 2 || lp.y.abs() > size.y / 2) {
-      return; // touch outside the body rect -> do not aim
-    }
+    // Flame dispatches this callback only after the component's hit-test area
+    // has accepted the pointer. Do not perform a second local-coordinate
+    // check here: PositionComponent local positions are not guaranteed to be
+    // centered around zero (and the anchor does not make them so). The
+    // component bounds are the single authoritative activation area.
     _startLocal = event.localPosition;
     _current = event.localPosition;
     aim.active = true;
@@ -103,11 +100,23 @@ class AimControl extends PositionComponent
 
   void _finish({required bool fire}) {
     if (!aim.active) return;
+    // Snapshot every release value while the drawn bow is still visible.
+    // In particular, launchCenter observes the non-zero bowDraw here.
+    final shot = fire && aim.canFire
+        ? ShotData(
+            worldAngle: aim.worldAngle,
+            power: aim.power,
+            speed: aim.speed,
+            facing: aim.facing,
+            pullDistance: aim.pullDistance,
+            draw: game.hunter.bowDraw,
+            launchCenter: game.hunter
+                .arrowLaunchCenterFor(aim.worldAngle, draw: game.hunter.bowDraw)
+                .clone(),
+          )
+        : null;
+    if (shot != null) onFire?.call(shot);
     aim.active = false;
-    // Minimum-pull gate: only fire if the pull passed the threshold.
-    if (fire && aim.canFire) {
-      onFire?.call(aim);
-    }
     _startLocal = null;
     _current = null;
   }
