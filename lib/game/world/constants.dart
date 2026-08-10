@@ -30,7 +30,7 @@ const int hunterMaxHealth = 100;
 const double hunterBoundaryLeft = wallThickness + hunterHalfWidth;
 const double hunterBoundaryRight = worldWidth - wallThickness - hunterHalfWidth;
 
-// --- Bow / arrow (prototype aiming — no combat yet) ---
+// --- Bow / arrow combat ---
 const double arrowMinSpeed = 420; // px/s at minimum power
 const double arrowMaxSpeed = 1200; // px/s at full power
 const double arrowGravity = 900; // px/s^2 downward
@@ -38,6 +38,18 @@ const double maxAimPull = 240; // drag distance (px) required for full power
 const double bowLength = 44; // visual length of the bow
 const double arrowLength = 46; // visual length of the arrow
 const double bowMaxDraw = 18; // max bowstring draw-back (world units) at full power
+
+// --- Skeleton (Milestone 2A) ---
+const double skeletonSpeed = 72;
+const double skeletonAttackRange = 42;
+const double skeletonAttackCooldown = 1.0;
+const double skeletonAttackDamage = 10;
+const int skeletonBodyDamage = 10;
+const int skeletonHeadDamage = 25;
+const int skeletonMaxHealth = 40;
+const double combatFeedbackDuration = 0.55;
+const double skeletonHurtDuration = 0.16;
+const double skeletonDeathDuration = 0.35;
 
 /// Colors shared by the prototype battlefield.
 const Color skyTop = Color(0xFF4A6E8C);

@@ -7,7 +7,7 @@ import 'constants.dart';
 /// The visible ground band along the bottom of the battlefield.
 ///
 /// A simple grass strip over a dirt base. Marks the lowest walkable surface
-/// for the prototype (no player movement yet).
+/// for the current side-scrolling battlefield.
 class Ground extends PositionComponent {
   Ground()
       : super(

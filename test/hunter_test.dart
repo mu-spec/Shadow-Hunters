@@ -13,6 +13,15 @@ void main() {
     expect(hunterSpeed, greaterThan(0));
   });
 
+  test('dead Hunter cannot aim', () {
+    final hunter = Hunter(position: playerSpawn, aim: AimState());
+    hunter.takeDamage(hunterMaxHealth);
+    expect(hunter.health, 0);
+    expect(hunter.isDead, isTrue);
+    expect(hunter.canAim, isFalse);
+    expect(hunter.canFire, isFalse);
+  });
+
   test('boundary clamps keep the hunter inside the battlefield', () {
     // Left and right limits must be inside the world and ordered.
     expect(hunterBoundaryLeft, greaterThan(wallThickness));
@@ -64,6 +73,21 @@ void main() {
       h.position.x = 900; // moved right
       const angle = 0.0;
       expect(h.bowReleasePositionFor(angle).x, closeTo(900 - 10, 0.1));
+    });
+  });
+
+  group('visible bow string release (R21C)', () {
+    test('center-anchored arrow rear nock equals drawn string for all directions', () {
+      for (final angle in [0.0, pi / 4, pi / 2, 3 * pi / 4, pi]) {
+        final aim = AimState()
+          ..active = true
+          ..power = 0.7;
+        final h = Hunter(position: playerSpawn, aim: aim);
+        final dir = Vector2(cos(angle), -sin(angle));
+        final center = h.arrowLaunchCenterFor(angle);
+        final nock = center - dir * (arrowLength / 2);
+        expect(nock, closeToVector(h.bowStringReleasePositionFor(angle)));
+      }
     });
   });
 

@@ -45,27 +45,6 @@ class Hunter extends PositionComponent {
 
   HunterState get state => moveDirection == 0 ? HunterState.idle : HunterState.moving;
 
-  /// World-space rectangle covering the FULL visible Hunter body (head, torso,
-  /// arms/bow, waist, legs), with a small forgiving touch margin for mobile.
-  ///
-  /// The Hunter is anchored at its feet ([Anchor.bottomCenter]), so
-  /// [position] is the feet. The body spans `height` up from the feet; the rect
-  /// is expanded by [aimTouchMargin] on all sides.
-  Rect get aimTouchRect {
-    final halfW = size.x / 2 + aimTouchMargin;
-    final top = position.y - size.y - aimTouchMargin;
-    final bottom = position.y + aimTouchMargin;
-    return Rect.fromLTRB(
-      position.x - halfW,
-      top,
-      position.x + halfW,
-      bottom,
-    );
-  }
-
-  /// Forgiving touch margin around the body for comfortable mobile aiming.
-  static const double aimTouchMargin = 10;
-  ///
   /// The bow pivot is drawn at local `(0, -42)` from the feet; the string/nock
   /// sits 10 units back (opposite the firing direction) from the pivot, which
   /// is exactly where the drawn bowstring/arrow-nock is in [render].
@@ -85,11 +64,32 @@ class Hunter extends PositionComponent {
   /// launch origin accounts for the draw so the released arrow is continuous
   /// with the nocked arrow. This is the single authoritative launch origin
   /// shared by the trajectory preview and the actual Arrow.
-  Vector2 arrowLaunchCenterFor(double angle) {
+  /// World-space position of the visible bow string/nock for this angle.
+  /// This is the single release point shared by the drawn arrow, preview, and
+  /// projectile. [draw] is optional so release snapshots can pass an immutable
+  /// value after aim state has been reset.
+  Vector2 bowStringReleasePositionFor(double angle, {double? draw}) {
     final dir = Vector2(cos(angle), -sin(angle));
-    // String/nock pulls back by bowDraw from the resting release point.
-    final nock = bowReleasePositionFor(angle) - dir * bowDraw;
+    final effectiveDraw = draw ?? bowDraw;
+    return bowReleasePositionFor(angle) - dir * effectiveDraw;
+  }
+
+  Vector2 arrowLaunchCenterFor(double angle, {double? draw}) {
+    final dir = Vector2(cos(angle), -sin(angle));
+    // Arrow is center-anchored, so place its center half a shaft length beyond
+    // the exact visible string/nock point.
+    final nock = bowStringReleasePositionFor(angle, draw: draw);
     return nock + dir * (arrowLength / 2);
+  }
+
+  bool get isDead => health <= 0;
+  bool get canAim => !isDead;
+  bool get canFire => !isDead;
+
+  /// Applies melee damage, clamped so health never becomes negative.
+  void takeDamage(int amount) {
+    if (amount <= 0 || isDead) return;
+    health = (health - amount).clamp(0, hunterMaxHealth).toInt();
   }
 
   /// Resets the Hunter to its original state: spawn position, full health,
@@ -104,6 +104,10 @@ class Hunter extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    if (isDead) {
+      moveDirection = 0;
+      return;
+    }
 
     // Apply horizontal movement, scaled by dt (frame-rate independent).
     if (moveDirection != 0) {
@@ -129,8 +133,15 @@ class Hunter extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // Local origin is the feet centre (Anchor.bottomCenter). +x is right,
-    // -y is up.
+    // PositionComponent local drawing coordinates start at the component's
+    // top-left, even when the component is anchored at bottomCenter. Translate
+    // to the feet (the component's bottom-center) before using the Hunter's
+    // established feet-relative artwork coordinates. This keeps the visible
+    // body inside the 48x76 bounds while position remains the world-space feet.
+    canvas.save();
+    canvas.translate(size.x / 2, size.y);
+
+    // Feet-relative origin: +x is right and -y is up.
     final f = facing; // multiplier for left/right facing
 
     // --- Legs ---
@@ -195,6 +206,8 @@ class Hunter extends PositionComponent {
       textDirection: TextDirection.ltr,
     )..layout();
     painter.paint(canvas, Offset(-painter.width / 2, -94));
+
+    canvas.restore();
   }
 
   /// Renders the bow at the hunter's hand, rotating it to the aim direction.
@@ -293,12 +306,51 @@ class Hunter extends PositionComponent {
     final p0 = arrowLaunchCenterFor(angle);
     final vel = dir * speed;
 
+    final landingTime = Projectile.timeToReachY(
+      p0.y,
+      vel.y,
+      arrowGravity,
+      groundY,
+    );
+    if (landingTime == null) return;
+
     final dot = Paint()..color = const Color(0xCCFFFFFF);
-    for (double t = 0; t < 2.0; t += 0.07) {
+    // The canvas is still translated to the Hunter's feet by render(). Convert
+    // the world-space projectile positions back into that local feet-relative
+    // coordinate system before drawing them.
+    var stoppedAtBoundary = false;
+    var lastTime = 0.0;
+    for (double t = 0; t <= landingTime; t += 0.07) {
       final p = Projectile.position(p0, vel, arrowGravity, t);
-      // Stop once the preview drops to (or below) the ground line.
-      if (p.y >= 0) break;
-      canvas.drawCircle(Offset(p.x, p.y), 3, dot);
+      final outside = p.x <= wallThickness ||
+          p.x >= worldWidth - wallThickness ||
+          p.y <= wallThickness ||
+          p.y >= groundY;
+      if (outside) {
+        stoppedAtBoundary = true;
+        break;
+      }
+      final local = Offset(p.x - position.x, p.y - position.y);
+      canvas.drawCircle(local, 3, dot);
+      lastTime = t;
+    }
+
+    // Draw the final valid sample before a boundary. This keeps the preview
+    // inside the same battlefield limits enforced by Arrow._step().
+    if (!stoppedAtBoundary) {
+      final landing = Projectile.position(p0, vel, arrowGravity, landingTime);
+      canvas.drawCircle(
+        Offset(landing.x - position.x, landing.y - position.y),
+        3,
+        dot,
+      );
+    } else if (lastTime > 0) {
+      final last = Projectile.position(p0, vel, arrowGravity, lastTime);
+      canvas.drawCircle(
+        Offset(last.x - position.x, last.y - position.y),
+        3,
+        dot,
+      );
     }
   }
 }
