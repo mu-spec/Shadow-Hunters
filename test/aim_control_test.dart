@@ -1,5 +1,3 @@
-import 'dart:ui' show Offset;
-
 import 'package:flame/components.dart' show Vector2;
 import 'package:flutter_test/flutter_test.dart';
 
