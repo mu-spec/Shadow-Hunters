@@ -31,7 +31,7 @@ class ShadowHuntersGame extends FlameGame {
 
   late final Hunter hunter;
   late final MovementJoystick joystick;
-  late final AimControl aimControl;
+  AimControl? aimControl;
   late final PauseButton pauseButton;
   late final DebugHud debugHud;
 
@@ -153,8 +153,9 @@ class ShadowHuntersGame extends FlameGame {
       camera.viewfinder.zoom =
           (size.y / worldHeight).clamp(0.4, 4.0).toDouble();
     }
-    if (aimControl.isMounted) {
-      aimControl
+    final control = aimControl;
+    if (control != null && control.isMounted) {
+      control
         ..position = Vector2(size.x / 2, 0)
         ..size = Vector2(size.x / 2, size.y);
     }
