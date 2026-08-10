@@ -12,7 +12,9 @@ import '../game/shadow_hunters_game.dart';
 /// sized to half the screen or offset toward one corner. Back / pause / HUD
 /// controls are simple Flutter overlays that sit on top.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.levelNumber = 1, this.onCompleted});
+  final int levelNumber;
+  final VoidCallback? onCompleted;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -28,7 +30,7 @@ class _GameScreenState extends State<GameScreen> {
     // aim sensitivity setting is honoured by the gameplay.
     if (_game == null) {
       final settings = SettingsScope.of(context);
-      _game = ShadowHuntersGame(settings: settings);
+      _game = ShadowHuntersGame(settings: settings, levelNumber: widget.levelNumber, onLevelCompleted: widget.onCompleted);
     }
   }
 
@@ -117,6 +119,43 @@ class _GameScreenState extends State<GameScreen> {
                                   ElevatedButton(
                                     onPressed: game.resumeGame,
                                     child: const Text('RESUME'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: game.restart,
+                                    child: const Text('RESTART'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                                    child: const Text('MAIN MENU'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: ValueListenableBuilder<GameStatus>(
+                          valueListenable: game.statusNotifier,
+                          builder: (context, status, _) {
+                            if (status == GameStatus.playing || game.paused) {
+                              return const SizedBox.shrink();
+                            }
+                            final victory = status == GameStatus.victory;
+                            return Container(
+                              color: Colors.black54,
+                              alignment: Alignment.center,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(victory ? 'VICTORY' : 'DEFEAT', style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 24),
+                                  ElevatedButton(onPressed: game.restart, child: const Text('RETRY')),
+                                  ElevatedButton(
+                                    onPressed: victory
+                                        ? () => Navigator.of(context).pop()
+                                        : () => Navigator.of(context).popUntil((route) => route.isFirst),
+                                    child: Text(victory ? 'CONTINUE' : 'MAIN MENU'),
                                   ),
                                 ],
                               ),

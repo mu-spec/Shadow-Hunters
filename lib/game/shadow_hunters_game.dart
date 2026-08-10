@@ -11,38 +11,39 @@ import 'controls/aim_control.dart';
 import 'controls/movement_joystick.dart';
 import 'controls/pause_button.dart';
 import 'entities/arrow.dart';
+import 'entities/combat_feedback.dart';
 import 'entities/hunter.dart';
+import 'entities/skeleton.dart';
+import 'levels/level_data.dart';
+import 'levels/level_loader.dart';
 import 'ui/debug_hud.dart';
 import 'world/battlefield.dart';
 import 'world/constants.dart';
 
 /// The Flame game world for Shadow Hunters.
 ///
-/// Milestone 1D: firing arrows with projectile physics (gravity, curved path,
-/// rotation, ground/world collision, limited lifetime, cleanup). The trajectory
-/// preview uses the same math as the flying arrow so they match. No enemies yet.
+/// Current game loop: projectile physics, Skeleton combat, hit zones, and
+/// camera-follow gameplay for the active Phase 2 implementation. The
+/// trajectory preview uses the same math as the flying Arrow.
+enum GameStatus { playing, victory, defeat }
+
 class ShadowHuntersGame extends FlameGame {
-  ShadowHuntersGame({required SettingsService settings}) : _settings = settings;
+  ShadowHuntersGame({required SettingsService settings, this.levelNumber = 1, this.onLevelCompleted}) : _settings = settings;
+
+  final int levelNumber;
+  final VoidCallback? onLevelCompleted;
 
   final SettingsService _settings;
   SettingsService get settings => _settings;
 
+  late LevelData levelData;
+  double _levelWorldWidth = worldWidth;
+  double _levelWorldHeight = worldHeight;
   late final Hunter hunter;
   late final MovementJoystick joystick;
-  late final AimControl aimControl;
+  AimControl? aimControl;
   late final PauseButton pauseButton;
   late final DebugHud debugHud;
-
-  /// Returns the world position of the AIM CONTROL's center, sized and placed
-  /// to cover the Hunter's FULL body touch rect (head to legs + margin).
-  ///
-  /// The Hunter is anchored at its feet ([Anchor.bottomCenter]), so its body
-  /// rect is derived from the feet + height. The aim control (anchor center)
-  /// is centered on that body rect.
-  Vector2 get _aimControlPosition {
-    final r = hunter.aimTouchRect;
-    return Vector2(r.center.dx, r.center.dy);
-  }
 
   /// Shared aim state (written by [aimControl], read by the [hunter]).
   final AimState aim = AimState();
@@ -50,6 +51,8 @@ class ShadowHuntersGame extends FlameGame {
   /// Pause-state notifier so the Flutter overlay (GameScreen) stays in sync
   /// with the actual engine pause state.
   final ValueNotifier<bool> pauseNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<GameStatus> statusNotifier = ValueNotifier<GameStatus>(GameStatus.playing);
+  bool _completionReported = false;
 
   /// When true, the on-screen diagnostic debug HUD is shown. Hidden by default
   /// for normal players; kept behind this flag for development/diagnostics.
@@ -69,6 +72,8 @@ class ShadowHuntersGame extends FlameGame {
 
   /// All live arrows currently in the world (flying or stuck).
   final List<Arrow> arrows = [];
+  final List<Skeleton> skeletons = [];
+  final Set<Arrow> _spentArrows = {};
 
   /// Human-readable description of the most recent fired shot.
   String lastShot = 'none';
@@ -96,6 +101,7 @@ class ShadowHuntersGame extends FlameGame {
   @override
   void dispose() {
     pauseNotifier.dispose();
+    statusNotifier.dispose();
     super.dispose();
   }
 
@@ -103,24 +109,65 @@ class ShadowHuntersGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    await world.add(Battlefield());
+    levelData = await LevelLoader.load('assets/levels/level_$levelNumber.json') ??
+        LevelData(
+          id: 'level_1',
+          name: 'First Shot',
+          playerSpawn: playerSpawn.clone(),
+          enemyType: 'skeleton',
+          enemySpawn: enemySpawn.clone(),
+          enemySpawns: [enemySpawn.clone()],
+          enemyCount: 1,
+          battlefield: const {'theme': 'enchanted_forest'},
+        );
+
+    final battlefield = levelData.battlefield;
+    final configuredWidth = (battlefield['width'] is num &&
+            (battlefield['width'] as num).toDouble() > 0)
+        ? (battlefield['width'] as num).toDouble()
+        : _levelWorldWidth;
+    final configuredHeight = (battlefield['height'] is num &&
+            (battlefield['height'] as num).toDouble() > 0)
+        ? (battlefield['height'] as num).toDouble()
+        : worldHeight;
+    _levelWorldWidth = configuredWidth;
+    _levelWorldHeight = configuredHeight;
+    await world.add(
+      Battlefield(width: configuredWidth, height: configuredHeight),
+    );
 
     // Hunter with the shared aim state, feet on the ground.
-    hunter = Hunter(position: playerSpawn.clone(), aim: aim);
+    hunter = Hunter(position: levelData.playerSpawn.clone(), aim: aim, battlefieldWidth: _levelWorldWidth, battlefieldHeight: _levelWorldHeight);
     await world.add(hunter);
+
+    // Build the current level's declared enemy data.
+    for (var i = 0; i < levelData.enemyCount; i++) {
+      final skeleton = Skeleton(
+        position: levelData.enemySpawns[i % levelData.enemySpawns.length].clone(),
+        hunter: hunter,
+        patrolEnabled: levelData.battlefield['movingSkeleton'] == true,
+        battlefieldWidth: _levelWorldWidth,
+      );
+      skeletons.add(skeleton);
+      await world.add(skeleton);
+    }
 
     // Pull-back aim control: an invisible touch area sized to fully surround
     // the Hunter's whole body, added to the WORLD so Flame converts
     // screen<->world coordinates for touch hit-testing automatically (accurate
     // even while the camera pans).
+    // Hunter-body pull aiming remains in the WORLD so Flame performs the
+    // camera-aware hit test. Movement remains in the viewport, allowing both
+    // fingers to operate independently.
     final touchRect = hunter.aimTouchRect;
-    aimControl = AimControl(
+    final control = AimControl(
       aim: aim,
-      onFire: fire,
+      onFire: fireShot,
       size: Vector2(touchRect.width, touchRect.height),
-    );
-    aimControl.position.setFrom(_aimControlPosition);
-    await world.add(aimControl);
+    )
+      ..position = Vector2(touchRect.center.dx, touchRect.center.dy);
+    aimControl = control;
+    await world.add(control);
 
     // Screen-space controls & HUD (unaffected by the camera).
     //
@@ -152,9 +199,9 @@ class ShadowHuntersGame extends FlameGame {
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-    if (size.y > 0 && worldHeight > 0) {
+    if (size.y > 0 && _levelWorldHeight > 0) {
       camera.viewfinder.zoom =
-          (size.y / worldHeight).clamp(0.4, 4.0).toDouble();
+          (size.y / _levelWorldHeight).clamp(0.4, 4.0).toDouble();
     }
     _logDiagnostics('onGameResize');
   }
@@ -162,18 +209,40 @@ class ShadowHuntersGame extends FlameGame {
   /// Fires one arrow from the hunter's bow using the released [AimState].
   /// Public so tests and callbacks can trigger a shot.
   Future<void> fire(AimState a) async {
-    final dir = Vector2(cos(a.worldAngle), -sin(a.worldAngle));
-    // Launch from the bow release point (shared with the trajectory preview)
-    // so the Arrow's rear nock begins exactly at the bowstring.
-    final start = hunter.arrowLaunchCenterFor(a.worldAngle);
-    final arrow = Arrow(position: start, velocity: dir * a.speed);
+    if (hunter.isDead) return;
+    // Compatibility entry point for callers that explicitly fire current aim.
+    final shot = ShotData(
+      worldAngle: a.worldAngle,
+      power: a.power,
+      speed: a.speed,
+      facing: a.facing,
+      pullDistance: a.pullDistance,
+      draw: hunter.bowDraw,
+      launchCenter: hunter
+          .arrowLaunchCenterFor(a.worldAngle, draw: hunter.bowDraw)
+          .clone(),
+    );
+    await fireShot(shot);
+  }
+
+  Future<void> fireShot(ShotData shot) async {
+    if (hunter.isDead) return;
+    final dir = Vector2(cos(shot.worldAngle), -sin(shot.worldAngle));
+    // Use the immutable release snapshot; aim.active may already be false.
+    final start = shot.launchCenter.clone();
+    final arrow = Arrow(
+      position: start,
+      velocity: dir * shot.speed,
+      worldWidth: _levelWorldWidth,
+      worldHeight: _levelWorldHeight,
+    );
     arrows.add(arrow);
     await world.add(arrow);
 
-    final deg = (a.worldAngle * 180 / pi).round();
+    final deg = (shot.worldAngle * 180 / pi).round();
     lastShot =
-        'arrow #${arrows.length} angle $deg° power ${a.power.toStringAsFixed(2)} '
-        '(facing ${a.facing > 0 ? "R" : "L"})';
+        'arrow #${arrows.length} angle $deg° power ${shot.power.toStringAsFixed(2)} '
+          '(facing ${shot.facing > 0 ? "R" : "L"})';
   }
 
   /// Pauses the whole game simulation using Flame's engine pause. Freezes
@@ -201,10 +270,26 @@ class ShadowHuntersGame extends FlameGame {
       arrow.removeFromParent();
     }
     arrows.clear();
+    _spentArrows.clear();
+    for (final skeleton in skeletons) {
+      skeleton.removeFromParent();
+    }
+    skeletons.clear();
+    for (var i = 0; i < levelData.enemyCount; i++) {
+      final skeleton = Skeleton(
+        position: levelData.enemySpawns[i % levelData.enemySpawns.length].clone(),
+        hunter: hunter,
+        patrolEnabled: levelData.battlefield['movingSkeleton'] == true,
+        battlefieldWidth: _levelWorldWidth,
+      );
+      skeletons.add(skeleton);
+      world.add(skeleton);
+    }
+
+    statusNotifier.value = GameStatus.playing;
 
     // --- Hunter: spawn, full health, idle, default facing, zero input ---
-    hunter.reset(playerSpawn);
-    aimControl.position.setFrom(_aimControlPosition);
+    hunter.reset(levelData.playerSpawn.clone());
 
     // --- Aiming: cancel active aim, reset power/pull/angle ---
     aim.active = false;
@@ -233,18 +318,74 @@ class ShadowHuntersGame extends FlameGame {
 
   @override
   void update(double dt) {
+    // Capture positions before Flame advances Arrow physics this frame.
+    final previousArrowPositions = <Arrow, Vector2>{
+      for (final arrow in arrows) arrow: arrow.position.clone(),
+    };
     super.update(dt);
+
+    if (hunter.isDead) {
+      statusNotifier.value = GameStatus.defeat;
+    } else if (skeletons.isNotEmpty &&
+        skeletons.every((s) => s.isDead)) {
+      statusNotifier.value = GameStatus.victory;
+      if (!_completionReported) {
+        _completionReported = true;
+        onLevelCompleted?.call();
+      }
+    }
 
     // Drop arrows that have cleaned themselves up (stuck-then-expired or hit
     // their max lifetime), so the tracked list stays in sync with the world.
-    arrows.removeWhere((a) => !a.isMounted);
+    // Resolve each Arrow against the Skeleton head/body hit zones.
+    for (final arrow in List<Arrow>.from(arrows)) {
+      if (!arrow.flying || _spentArrows.contains(arrow)) continue;
+      for (final skeleton in List<Skeleton>.from(skeletons)) {
+        if (skeleton.isDead) continue;
+        final zone = skeleton.hitZoneAlongPath(
+          previousArrowPositions[arrow] ?? arrow.position,
+          arrow.position,
+        );
+        if (zone != null) {
+          final headshot = zone == SkeletonHitZone.head;
+          final damage = skeleton.damageFor(zone);
+          skeleton.takeDamage(damage);
+          world.add(
+            CombatFeedback(
+              position: arrow.position.clone(),
+              damage: damage,
+              headshot: headshot,
+            ),
+          );
+          world.add(
+            ImpactEffect(
+              position: arrow.position.clone(),
+              headshot: headshot,
+            ),
+          );
+          _spentArrows.add(arrow);
+          arrow.removeFromParent();
+          break;
+        }
+      }
+    }
+    arrows.removeWhere((a) {
+      final removed = !a.isMounted;
+      if (removed) _spentArrows.remove(a);
+      return removed;
+    });
+    skeletons.removeWhere((s) => !s.isMounted);
 
     // Block movement while paused (Flame already freezes arrow updates).
     hunter.moveDirection = paused ? 0 : joystick.horizontalDirection;
 
-    // Keep the aim control centered on the Hunter's body (follows him while
-    // moving) — vertically offset so it surrounds the body, not the feet.
-    aimControl.position.setFrom(_aimControlPosition);
+    final control = aimControl;
+    if (control != null && control.isMounted) {
+      final rect = hunter.aimTouchRect;
+      control
+        ..position = Vector2(rect.center.dx, rect.center.dy)
+        ..size = Vector2(rect.width, rect.height);
+    }
 
     // When aiming, the Hunter faces the intended firing direction (not the
     // movement direction). Aiming takes precedence for facing.
@@ -260,7 +401,7 @@ class ShadowHuntersGame extends FlameGame {
   /// Visible world width on screen (in world units), from the current device
   /// size and zoom. Adapts to any landscape aspect ratio.
   double get _visibleWorldWidth =>
-      camera.viewfinder.zoom > 0 ? size.x / camera.viewfinder.zoom : worldWidth;
+      camera.viewfinder.zoom > 0 ? size.x / camera.viewfinder.zoom : _levelWorldWidth;
 
   /// Horizontal camera follow with a dead zone and smooth (non-snapping) lerp.
   /// Follows the Hunter only on the X axis; keeps him ~35% from the left so
@@ -275,7 +416,7 @@ class ShadowHuntersGame extends FlameGame {
       camX: _camX,
       camTargetX: _camTargetX,
       visibleWorldWidth: visibleW,
-      worldWidth: worldWidth,
+      worldWidth: _levelWorldWidth,
       dt: dt,
     );
     _camX = nextX;
@@ -296,7 +437,7 @@ class ShadowHuntersGame extends FlameGame {
           'camX=${camera.viewfinder.position.x.round()} '
           'targetX=${_camTargetX.round()} '
           'visibleW=${visibleW.round()} '
-          'maxCamX=${(worldWidth - visibleW).round()} '
+          'maxCamX=${(_levelWorldWidth - visibleW).round()} '
           'gameW=${size.x.round()} '
           'zoom=${camera.viewfinder.zoom.toStringAsFixed(2)}',
         );

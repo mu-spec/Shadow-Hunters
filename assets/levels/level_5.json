@@ -1,0 +1,1 @@
+{"id":"level_5","name":"First Battle","playerSpawn":{"x":220,"y":600},"enemyType":"skeleton","enemySpawn":{"x":1300,"y":600},"enemySpawns":[{"x":1100,"y":600},{"x":1400,"y":600},{"x":1700,"y":600}],"enemyCount":3,"battlefield":{"theme":"enchanted_forest","width":2560,"height":720}}

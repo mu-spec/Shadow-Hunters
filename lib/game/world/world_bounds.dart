@@ -11,8 +11,8 @@ import 'constants.dart';
 /// the camera zoomed to fill the screen). The bottom is bounded by the ground.
 /// In later milestones these edges will act as physical collision walls.
 class WorldBounds extends PositionComponent {
-  WorldBounds()
-      : super(size: Vector2(worldWidth, worldHeight), position: Vector2.zero());
+  WorldBounds({double width = worldWidth, double height = worldHeight})
+      : super(size: Vector2(width, height), position: Vector2.zero());
 
   static const double _lineWidth = 2;
 
@@ -24,7 +24,7 @@ class WorldBounds extends PositionComponent {
       ..style = PaintingStyle.stroke
       ..strokeWidth = _lineWidth;
 
-    final bounds = Rect.fromLTWH(0, 0, worldWidth, worldHeight);
+    final bounds = Rect.fromLTWH(0, 0, size.x, size.y);
     canvas.drawRect(bounds, paint);
   }
 }

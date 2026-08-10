@@ -1,0 +1,13 @@
+{
+  "id": "level_1",
+  "name": "First Shot",
+  "playerSpawn": { "x": 220, "y": 600 },
+  "enemyType": "skeleton",
+  "enemySpawn": { "x": 620, "y": 600 },
+  "enemyCount": 1,
+  "battlefield": {
+    "theme": "enchanted_forest",
+    "width": 2560,
+    "height": 720
+  }
+}

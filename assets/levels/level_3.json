@@ -1,0 +1,1 @@
+{"id":"level_3","name":"Head Hunter","playerSpawn":{"x":220,"y":600},"enemyType":"skeleton","enemySpawn":{"x":1200,"y":600},"enemyCount":1,"objective":"HEADSHOT CHALLENGE — Aim for the Skeleton's head.","battlefield":{"theme":"enchanted_forest","width":2560,"height":720}}

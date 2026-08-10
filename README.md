@@ -2,13 +2,10 @@
 
 A 2D fantasy action / physics archery game built with **Flutter + Flame** for **Android**.
 
-> **Status:** Phase 0 + Phase 1 complete (audited) + R11–R18 fixes. Foundation + menus + settings + battlefield + Hunter. Arm64-only build.
-> movement (compact lower-left joystick) + **pull-back bow control** (aim starts by touching the
-> Hunter; shot fires opposite the drag direction, R10) + firing arrows with projectile physics.
-> GameWidget fills the screen; camera viewfinder anchored top-left at world origin (R6) with
-> smooth horizontal follow keeping the Hunter ~35% from the left and clamped to the world edges
-> (R7). Debug HUD hidden behind `showDebugHud`. Compact upper-right pause button. No enemies or
-> combat yet.
+> **Status:** Phase 2 complete (Skeleton combat, body/head hit zones, projectile collisions,
+> damage feedback, and ARM64-only Android build). Phase 0 and Phase 1 systems remain active:
+> movement, pull-back bow aiming, projectile physics, camera follow, menus, settings, and pause.
+> Debug HUD remains hidden behind `showDebugHud`.
 
 ---
 

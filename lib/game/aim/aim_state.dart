@@ -1,5 +1,7 @@
 import 'dart:math' show atan2, pi;
 
+import 'package:flame/components.dart' show Vector2;
+
 import '../world/constants.dart';
 
 /// Minimum pull distance (touch units) required before a shot may be fired.
@@ -12,6 +14,28 @@ const double minPullToFire = 14.0;
 /// The aim is stored as an *absolute* [worldAngle] (0 = firing right, + = firing
 /// upward, up to pi = firing left) and a [power] (0..1). The firing direction is
 /// the opposite of the drag/pull direction (pull-back bow controls).
+/// Immutable snapshot of a valid release, captured before the mutable aim state
+/// is cleared.
+class ShotData {
+  const ShotData({
+    required this.worldAngle,
+    required this.power,
+    required this.speed,
+    required this.facing,
+    required this.pullDistance,
+    required this.draw,
+    required this.launchCenter,
+  });
+
+  final double worldAngle;
+  final double power;
+  final double speed;
+  final double facing;
+  final double pullDistance;
+  final double draw;
+  final Vector2 launchCenter;
+}
+
 class AimState {
   /// Whether the player is currently aiming.
   bool active = false;

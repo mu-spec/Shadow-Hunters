@@ -14,7 +14,7 @@ import '../world/constants.dart';
 ///   then is removed. A limited total lifetime cleans up any arrow that never
 ///   hits (e.g. fired high and clipped a wall).
 class Arrow extends PositionComponent {
-  Arrow({required super.position, required Vector2 velocity})
+  Arrow({required super.position, required Vector2 velocity, this.worldWidth = 2560, this.worldHeight = 720})
       : _velocity = velocity.clone(),
         // Anchor at CENTER so `position` is the visual center of the arrow and
         // rotation spins around the shaft center (not a corner). This makes the
@@ -27,6 +27,8 @@ class Arrow extends PositionComponent {
   /// Absolute maximum lifetime in flight (safety cleanup).
   static const double maxLife = 6.0;
 
+  final double worldWidth;
+  final double worldHeight;
   final Vector2 _velocity;
 
   /// Current rotation of the arrow (radians), following the velocity vector.
@@ -65,8 +67,8 @@ class Arrow extends PositionComponent {
 
     // --- World collisions ---
     // Ground: stick into the ground.
-    if (position.y >= groundY) {
-      position.y = groundY;
+    if (position.y >= worldHeight - groundHeight) {
+      position.y = worldHeight - groundHeight;
       _flying = false;
       _stickTime = 0;
       return;

@@ -24,7 +24,16 @@ class DebugHud extends PositionComponent with HasGameReference<ShadowHuntersGame
     super.render(canvas);
     final g = game;
 
-    // Hidden for normal players; only visible when the debug HUD is enabled.
+    if (!g.showDebugHud && g.statusNotifier.value == GameStatus.playing) {
+      final objective = g.levelData.objective;
+      final text = 'LEVEL ${g.levelNumber}   HEALTH ${g.hunter.health}   ENEMIES ${g.skeletons.where((s) => !s.isDead).length}${objective == null ? '' : '   $objective'}';
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: const TextStyle(color: Color(0xFFE8F0F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas, Offset.zero);
+      return;
+    }
     if (!g.showDebugHud) return;
 
     final deg = (g.aim.worldAngle * 180 / pi);

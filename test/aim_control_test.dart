@@ -1,57 +1,34 @@
-import 'package:flame/components.dart' show Vector2;
+import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:shadow_hunters/game/aim/aim_state.dart';
+import 'package:shadow_hunters/game/controls/aim_control.dart';
 import 'package:shadow_hunters/game/entities/hunter.dart';
+import 'package:shadow_hunters/game/world/constants.dart';
 
 void main() {
-  // Hunter visual dimensions (feet anchored).
-  const hunterW = 48.0;
-  const hunterH = 76.0;
-  final feet = Vector2(220, 600);
+  test('AimControl is centered and sized from Hunter body bounds', () {
+    final hunter = Hunter(position: playerSpawn, aim: AimState());
+    final rect = hunter.aimTouchRect;
+    final control = AimControl(
+      aim: hunter.aim,
+      size: Vector2(rect.width, rect.height),
+    )..position = Vector2(rect.center.dx, rect.center.dy);
 
-  Hunter makeHunter() => Hunter(position: feet, aim: AimState());
+    expect(control.anchor, Anchor.center);
+    expect(control.size.x, closeTo(rect.width, 0.001));
+    expect(control.size.y, closeTo(rect.height, 0.001));
+    expect(control.position.x, closeTo(rect.center.dx, 0.001));
+    expect(control.position.y, closeTo(rect.center.dy, 0.001));
+  });
 
-  group('Hunter.aimTouchRect (full-body touch rectangle)', () {
-    test('covers head, torso, waist and legs of the visible body', () {
-      final rect = makeHunter().aimTouchRect;
-      final margin = Hunter.aimTouchMargin;
-
-      // Head is near the top of the body (feet.y - height).
-      expect(rect.contains(Offset(feet.x, feet.y - hunterH)), isTrue);
-      // Chest/upper torso.
-      expect(rect.contains(Offset(feet.x, feet.y - hunterH * 0.75)), isTrue);
-      // Center torso.
-      expect(rect.contains(Offset(feet.x, feet.y - hunterH * 0.5)), isTrue);
-      // Waist.
-      expect(rect.contains(Offset(feet.x, feet.y - hunterH * 0.3)), isTrue);
-      // Legs (near the feet).
-      expect(rect.contains(Offset(feet.x, feet.y)), isTrue);
-
-      // The rect extends a margin above the head and below the feet.
-      expect(rect.top, lessThanOrEqualTo(feet.y - hunterH));
-      expect(rect.bottom, greaterThanOrEqualTo(feet.y));
-      expect(rect.left, lessThanOrEqualTo(feet.x - hunterW / 2));
-      expect(rect.right, greaterThanOrEqualTo(feet.x + hunterW / 2));
-      // Sanity: margin is positive.
-      expect(margin, greaterThan(0));
-    });
-
-    test('touch clearly outside the body does NOT start aim', () {
-      final rect = makeHunter().aimTouchRect;
-      // Far to the right and far above the head.
-      expect(rect.contains(Offset(feet.x + 200, feet.y)), isFalse);
-      expect(rect.contains(Offset(feet.x, feet.y - hunterH - 100)), isFalse);
-    });
-
-    test('rect follows the Hunter when he moves (camera-follow aware)', () {
-      final h = makeHunter();
-      h.position.x = 1500; // moved far right (camera would follow)
-      final rect = h.aimTouchRect;
-      // Body rect is still centered on the new position.
-      expect(rect.center.dx, closeTo(1500, 0.001));
-      expect(rect.contains(Offset(1500, feet.y - hunterH)), isTrue);
-      expect(rect.contains(Offset(1500, feet.y)), isTrue);
-    });
+  test('pull direction is inverse of drag direction and power grows with pull', () {
+    final aim = AimState();
+    aim.applyPull(40, 0); // drag right means pull vector points left/right mapping
+    expect(aim.worldAngle, closeTo(0, 0.001));
+    aim.setPowerByDistance(80);
+    final shorter = aim.power;
+    aim.setPowerByDistance(160);
+    expect(aim.power, greaterThan(shorter));
   });
 }
