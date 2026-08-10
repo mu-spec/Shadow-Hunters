@@ -114,10 +114,11 @@ class ShadowHuntersGame extends FlameGame {
     // Screen-space controls & HUD. The right half is the dedicated aim region;
     // the left joystick and right aim drag can therefore receive separate
     // pointers simultaneously.
-    aimControl = AimControl(aim: aim, onFire: fireShot)
+    final control = AimControl(aim: aim, onFire: fireShot)
       ..position = Vector2(size.x / 2, 0)
       ..size = Vector2(size.x / 2, size.y);
-    camera.viewport.add(aimControl);
+    aimControl = control;
+    camera.viewport.add(control);
 
     // Screen-space controls & HUD (unaffected by the camera).
     //
