@@ -44,6 +44,15 @@ void main() {
       expect(rect.contains(Offset(feet.x, feet.y - hunterH - 100)), isFalse);
     });
 
+    test('touch area is centered on the full component, not the feet', () {
+      final h = makeHunter();
+      final rect = h.aimTouchRect;
+      expect(rect.center.dx, closeTo(feet.x, 0.001));
+      expect(rect.center.dy, closeTo(feet.y - hunterH / 2, 0.001));
+      expect(rect.width, closeTo(h.size.x + Hunter.aimTouchMargin * 2, 0.001));
+      expect(rect.height, closeTo(h.size.y + Hunter.aimTouchMargin * 2, 0.001));
+    });
+
     test('rect follows the Hunter when he moves (camera-follow aware)', () {
       final h = makeHunter();
       h.position.x = 1500; // moved far right (camera would follow)

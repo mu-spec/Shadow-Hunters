@@ -52,15 +52,17 @@ class Hunter extends PositionComponent {
   /// [position] is the feet. The body spans `height` up from the feet; the rect
   /// is expanded by [aimTouchMargin] on all sides.
   Rect get aimTouchRect {
-    final halfW = size.x / 2 + aimTouchMargin;
-    final top = position.y - size.y - aimTouchMargin;
-    final bottom = position.y + aimTouchMargin;
-    return Rect.fromLTRB(
-      position.x - halfW,
-      top,
-      position.x + halfW,
-      bottom,
+    // Position is the feet at the bottom-center anchor. Convert the corrected
+    // component bounds to world coordinates first, then add only the small
+    // mobile margin. This keeps the activation area centered on the whole
+    // visible body, never on the feet alone.
+    final visibleBounds = Rect.fromLTRB(
+      position.x - size.x / 2,
+      position.y - size.y,
+      position.x + size.x / 2,
+      position.y,
     );
+    return visibleBounds.inflate(aimTouchMargin);
   }
 
   /// Forgiving touch margin around the body for comfortable mobile aiming.
@@ -85,13 +87,21 @@ class Hunter extends PositionComponent {
   /// launch origin accounts for the draw so the released arrow is continuous
   /// with the nocked arrow. This is the single authoritative launch origin
   /// shared by the trajectory preview and the actual Arrow.
+  /// World-space position of the visible bow string/nock for this angle.
+  /// This is the single release point shared by the drawn arrow, preview, and
+  /// projectile. [draw] is optional so release snapshots can pass an immutable
+  /// value after aim state has been reset.
+  Vector2 bowStringReleasePositionFor(double angle, {double? draw}) {
+    final dir = Vector2(cos(angle), -sin(angle));
+    final effectiveDraw = draw ?? bowDraw;
+    return bowReleasePositionFor(angle) - dir * effectiveDraw;
+  }
+
   Vector2 arrowLaunchCenterFor(double angle, {double? draw}) {
     final dir = Vector2(cos(angle), -sin(angle));
-    // A supplied draw is used by release snapshots; otherwise preserve the
-    // normal live-aim behavior for rendering and previews.
-    final effectiveDraw = draw ?? bowDraw;
-    // String/nock pulls back by the captured/current draw.
-    final nock = bowReleasePositionFor(angle) - dir * effectiveDraw;
+    // Arrow is center-anchored, so place its center half a shaft length beyond
+    // the exact visible string/nock point.
+    final nock = bowStringReleasePositionFor(angle, draw: draw);
     return nock + dir * (arrowLength / 2);
   }
 
@@ -132,8 +142,15 @@ class Hunter extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
-    // Local origin is the feet centre (Anchor.bottomCenter). +x is right,
-    // -y is up.
+    // PositionComponent local drawing coordinates start at the component's
+    // top-left, even when the component is anchored at bottomCenter. Translate
+    // to the feet (the component's bottom-center) before using the Hunter's
+    // established feet-relative artwork coordinates. This keeps the visible
+    // body inside the 48x76 bounds while position remains the world-space feet.
+    canvas.save();
+    canvas.translate(size.x / 2, size.y);
+
+    // Feet-relative origin: +x is right and -y is up.
     final f = facing; // multiplier for left/right facing
 
     // --- Legs ---
@@ -198,6 +215,8 @@ class Hunter extends PositionComponent {
       textDirection: TextDirection.ltr,
     )..layout();
     painter.paint(canvas, Offset(-painter.width / 2, -94));
+
+    canvas.restore();
   }
 
   /// Renders the bow at the hunter's hand, rotating it to the aim direction.

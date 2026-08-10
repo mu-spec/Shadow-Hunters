@@ -67,6 +67,21 @@ void main() {
     });
   });
 
+  group('visible bow string release (R21C)', () {
+    test('center-anchored arrow rear nock equals drawn string for all directions', () {
+      for (final angle in [0.0, pi / 4, pi / 2, 3 * pi / 4, pi]) {
+        final aim = AimState()
+          ..active = true
+          ..power = 0.7;
+        final h = Hunter(position: playerSpawn, aim: aim);
+        final dir = Vector2(cos(angle), -sin(angle));
+        final center = h.arrowLaunchCenterFor(angle);
+        final nock = center - dir * (arrowLength / 2);
+        expect(nock, closeToVector(h.bowStringReleasePositionFor(angle)));
+      }
+    });
+  });
+
   group('bow draw tension (R16)', () {
     Hunter makeHunter() => Hunter(position: playerSpawn, aim: AimState());
 
