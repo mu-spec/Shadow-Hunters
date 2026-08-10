@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
 
@@ -64,7 +62,7 @@ class ImpactEffect extends PositionComponent {
     final radius = headshot ? 18.0 : 11.0;
     final paint = Paint()
       ..color = (headshot ? const Color(0xFFFFD43B) : const Color(0xFFFFFFFF))
-          .withOpacity(1 - progress)
+          .withValues(alpha: 1 - progress)
       ..style = PaintingStyle.stroke
       ..strokeWidth = headshot ? 4 : 2;
     canvas.drawCircle(Offset.zero, radius * progress, paint);
