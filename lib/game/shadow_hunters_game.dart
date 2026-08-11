@@ -75,6 +75,14 @@ class ShadowHuntersGame extends FlameGame {
   final List<Skeleton> skeletons = [];
   final Set<Arrow> _spentArrows = {};
 
+  /// Authoritative total number of enemies the level spawned. Driven by the
+  /// live [skeletons] list so the HUD and Victory always agree with what is
+  /// actually in the world.
+  int get totalEnemies => skeletons.length;
+
+  /// Number of enemies that are still alive (not dead).
+  int get liveEnemies => skeletons.where((s) => !s.isDead).length;
+
   /// Human-readable description of the most recent fired shot.
   String lastShot = 'none';
 
@@ -263,8 +271,10 @@ class ShadowHuntersGame extends FlameGame {
   /// its original condition: Hunter, aiming, arrows, camera, input, and pause.
   ///
   /// Safe to call repeatedly (even 10x) — it never stacks duplicate world
-  /// components and fully clears stale state.
-  void restart() {
+  /// components and fully clears stale state. Returns a Future so the freshly
+  /// respawned enemies are guaranteed to be mounted (and therefore tracked)
+  /// before the next frame runs.
+  Future<void> restart() async {
     // --- Arrows: remove every live arrow and clear the collection ---
     for (final arrow in arrows) {
       arrow.removeFromParent();
@@ -283,10 +293,12 @@ class ShadowHuntersGame extends FlameGame {
         battlefieldWidth: _levelWorldWidth,
       );
       skeletons.add(skeleton);
-      world.add(skeleton);
+      await world.add(skeleton);
     }
 
     statusNotifier.value = GameStatus.playing;
+    // Allow the level to be reported as completed again after a retry/restart.
+    _completionReported = false;
 
     // --- Hunter: spawn, full health, idle, default facing, zero input ---
     hunter.reset(levelData.playerSpawn.clone());
@@ -326,8 +338,10 @@ class ShadowHuntersGame extends FlameGame {
 
     if (hunter.isDead) {
       statusNotifier.value = GameStatus.defeat;
-    } else if (skeletons.isNotEmpty &&
-        skeletons.every((s) => s.isDead)) {
+    } else if (skeletons.isNotEmpty && liveEnemies == 0) {
+      // Victory requires EVERY spawned enemy to be dead. Using the alive count
+      // (rather than assuming a single enemy) keeps multi-enemy levels such as
+      // Level 5 from triggering Victory after only one Skeleton dies.
       statusNotifier.value = GameStatus.victory;
       if (!_completionReported) {
         _completionReported = true;
@@ -374,7 +388,12 @@ class ShadowHuntersGame extends FlameGame {
       if (removed) _spentArrows.remove(a);
       return removed;
     });
-    skeletons.removeWhere((s) => !s.isMounted);
+    // Only prune enemies that have actually finished dying and left the world.
+    // A live enemy must never be dropped from tracking: if it is removed (e.g.
+    // while its mount is still pending right after a Restart), the HUD enemy
+    // count and Victory would both lose sight of it, letting a multi-enemy
+    // level like Level 5 report one Skeleton and trigger Victory early.
+    skeletons.removeWhere((s) => !s.isMounted && s.isDead);
 
     // Block movement while paused (Flame already freezes arrow updates).
     hunter.moveDirection = paused ? 0 : joystick.horizontalDirection;

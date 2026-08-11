@@ -26,7 +26,7 @@ class DebugHud extends PositionComponent with HasGameReference<ShadowHuntersGame
 
     if (!g.showDebugHud && g.statusNotifier.value == GameStatus.playing) {
       final objective = g.levelData.objective;
-      final text = 'LEVEL ${g.levelNumber}   HEALTH ${g.hunter.health}   ENEMIES ${g.skeletons.where((s) => !s.isDead).length}${objective == null ? '' : '   $objective'}';
+      final text = 'LEVEL ${g.levelNumber}   HEALTH ${g.hunter.health}   ENEMIES ${g.liveEnemies}${objective == null ? '' : '   $objective'}';
       final painter = TextPainter(
         text: TextSpan(text: text, style: const TextStyle(color: Color(0xFFE8F0F5), fontSize: 16, fontWeight: FontWeight.bold)),
         textDirection: TextDirection.ltr,

@@ -168,8 +168,8 @@ void main() {
       // Pause before restart.
       game.pauseGame();
 
-      // 5. Trigger restart.
-      game.restart();
+      // 5. Trigger restart (async so the respawned enemies finish mounting).
+      await game.restart();
 
       // 6. Hunter back at spawn, full health.
       expect(game.hunter.position.x, closeTo(spawn.x, 0.001));
