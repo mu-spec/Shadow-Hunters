@@ -18,7 +18,9 @@ class BossProjectile extends PositionComponent {
     this.worldWidth = world.worldWidth,
     this.worldHeight = world.worldHeight,
   })  : _dir = direction.clone(),
-        super(anchor: Anchor.center);
+        super(anchor: Anchor.center) {
+    _prevPosition = position.clone();
+  }
 
   static const double radius = 14;
 
@@ -45,12 +47,6 @@ class BossProjectile extends PositionComponent {
   Vector2 get previousPosition => _prevPosition;
 
   double get rotation => atan2(_dir.y, _dir.x);
-
-  @override
-  void onMount() {
-    super.onMount();
-    _prevPosition = position.clone();
-  }
 
   @override
   void update(double dt) {
