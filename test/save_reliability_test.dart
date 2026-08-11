@@ -187,8 +187,9 @@ void main() {
       // completion cannot re-persist stale pre-reset progress.
       final levelSelect = SaveService.instance;
       await levelSelect.load();
-      await levelSelect.completeLevel(3);
-      await levelSelect.completeLevel(15);
+      await levelSelect.completeLevel(3); // unlocked -> 4
+      await levelSelect.completeLevel(14); // unlocked -> 15
+      await levelSelect.completeLevel(15); // V1 complete
       expect(levelSelect.unlockedLevel, 15);
       expect(levelSelect.isV1Complete, isTrue);
 
