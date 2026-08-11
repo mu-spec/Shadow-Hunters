@@ -2,7 +2,8 @@ import 'dart:ui' show Rect;
 
 import 'package:flame/components.dart' show Vector2;
 import 'package:flame/game.dart' show GameWidget;
-import 'package:flutter/material.dart' show MaterialApp, Scaffold;
+import 'package:flutter/material.dart'
+    show ElevatedButton, MaterialApp, OutlinedButton, Scaffold;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -182,6 +183,40 @@ void main() {
       expect(find.text('V1 COMPLETE'), findsOneWidget);
       expect(find.text('REPLAY LEVELS'), findsOneWidget);
       expect(find.text('MAIN MENU'), findsOneWidget);
+    });
+
+    testWidgets('V1 completion screen buttons are fully visible (not clipped)',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: FinalCompletion())),
+      );
+      await tester.pump();
+
+      final size = tester.getSize(find.byType(Scaffold));
+      // REPLAY LEVELS is an ElevatedButton; MAIN MENU is an OutlinedButton.
+      final buttonTypeFor = <String, Type>{
+        'REPLAY LEVELS': ElevatedButton,
+        'MAIN MENU': OutlinedButton,
+      };
+      for (final entry in buttonTypeFor.entries) {
+        final label = entry.key;
+        final type = entry.value;
+        final finder = find.text(label);
+        expect(finder, findsOneWidget);
+        // Check the button that contains this text (its full extent).
+        final button = find.ancestor(
+          of: finder,
+          matching: find.byType(type),
+        );
+        expect(button, findsOneWidget, reason: '$label button should exist');
+        final btnRect = tester.getRect(button);
+        expect(btnRect.left, greaterThanOrEqualTo(0));
+        expect(btnRect.right, lessThanOrEqualTo(size.width));
+        expect(btnRect.top, greaterThanOrEqualTo(0));
+        // Must not touch or cross the bottom edge.
+        expect(btnRect.bottom, lessThanOrEqualTo(size.height),
+            reason: '$label button must be fully visible (not clipped)');
+      }
     });
   });
 }

@@ -13,52 +13,58 @@ class _BossHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: 10,
       left: 0,
       right: 0,
+      // Sit below the normal top-left HUD (LEVEL/HEALTH/ENEMIES) so the boss
+      // name and bar never overlap it. SafeArea keeps it clear of the status
+      // bar / notches, and the padding guarantees clear vertical separation.
+      top: 0,
       child: IgnorePointer(
-        child: ValueListenableBuilder<double>(
-          valueListenable: game.bossHealthNotifier,
-          builder: (context, ratio, _) {
-            if (ratio < 0) return const SizedBox.shrink();
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ValueListenableBuilder<String>(
-                  valueListenable: game.bossNameNotifier,
-                  builder: (context, name, _) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 3,
-                        shadows: [
-                          Shadow(blurRadius: 4, color: Colors.black87),
-                        ],
+        child: SafeArea(
+          minimum: const EdgeInsets.only(top: 56),
+          child: ValueListenableBuilder<double>(
+            valueListenable: game.bossHealthNotifier,
+            builder: (context, ratio, _) {
+              if (ratio < 0) return const SizedBox.shrink();
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ValueListenableBuilder<String>(
+                    valueListenable: game.bossNameNotifier,
+                    builder: (context, name, _) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 3,
+                          shadows: [
+                            Shadow(blurRadius: 4, color: Colors.black87),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: ratio.clamp(0.0, 1.0).toDouble(),
-                      minHeight: 14,
-                      backgroundColor: const Color(0x88222A18),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFFE8FF9E),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: ratio.clamp(0.0, 1.0).toDouble(),
+                        minHeight: 14,
+                        backgroundColor: const Color(0x88222A18),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFFE8FF9E),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -155,58 +161,71 @@ class FinalCompletion extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFF0A0E14),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.forest, color: Color(0xFF7FD44E), size: 72),
-          const SizedBox(height: 24),
-          const Text(
-            'ENCHANTED FOREST SAVED',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFFE8FF9E),
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
+      // SafeArea keeps content clear of notches/status bars, and the
+      // horizontal/vertical padding gives the layout breathing room so the
+      // bottom MAIN MENU button is never clipped on any landscape screen.
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.forest,
+                    color: Color(0xFF7FD44E), size: 72),
+                const SizedBox(height: 20),
+                const Text(
+                  'ENCHANTED FOREST SAVED',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFFE8FF9E),
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'SHADOW HUNTERS',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 6,
+                  ),
+                ),
+                const Text(
+                  'V1 COMPLETE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 6,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                ElevatedButton(
+                  onPressed: () => _replayLevels(context),
+                  child: const Text('REPLAY LEVELS'),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton(
+                  onPressed: () => _mainMenu(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white38),
+                  ),
+                  child: const Text('MAIN MENU'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'SHADOW HUNTERS',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 34,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 6,
-            ),
-          ),
-          const Text(
-            'V1 COMPLETE',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 6,
-            ),
-          ),
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () => _replayLevels(context),
-            child: const Text('REPLAY LEVELS'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () => _mainMenu(context),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white38),
-            ),
-            child: const Text('MAIN MENU'),
-          ),
-        ],
+        ),
       ),
     );
   }
