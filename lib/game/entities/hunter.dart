@@ -65,6 +65,17 @@ class Hunter extends PositionComponent {
         position.y + aimTouchMargin,
       );
 
+  /// The Hunter's REAL gameplay collision bounds in world space (its body, feet
+  /// at [position], extending up [size.y]). This is the single authoritative
+  /// hitbox shared by obstacle collision and boss-projectile collision, so a
+  /// projectile uses exactly what the game world considers "the Hunter".
+  Rect get collisionRect => Rect.fromLTWH(
+        position.x - size.x / 2,
+        position.y - size.y,
+        size.x,
+        size.y,
+      );
+
   static const double aimTouchMargin = 10;
 
   /// The bow pivot is drawn at local `(0, -42)` from the feet; the string/nock
@@ -161,12 +172,7 @@ class Hunter extends PositionComponent {
   /// Returns true if the Hunter's body rectangle overlaps any solid obstacle.
   bool _overlapsObstacle() {
     if (obstacles.isEmpty) return false;
-    final body = Rect.fromLTWH(
-      position.x - size.x / 2,
-      position.y - size.y,
-      size.x,
-      size.y,
-    );
+    final body = collisionRect;
     for (final o in obstacles) {
       if (body.overlaps(o)) return true;
     }

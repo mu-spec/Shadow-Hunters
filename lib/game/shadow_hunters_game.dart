@@ -317,6 +317,11 @@ class ShadowHuntersGame extends FlameGame {
       worldWidth: _levelWorldWidth,
       worldHeight: _levelWorldHeight,
     );
+    // Temporary debug log (debug builds only): projectile launched.
+    assert(() {
+      debugPrint('[BossProjectile] PROJECTILE FIRED from $from dir $dir');
+      return true;
+    }());
     bossProjectiles.add(p);
     await world.add(p);
   }
@@ -329,23 +334,50 @@ class ShadowHuntersGame extends FlameGame {
     return false;
   }
 
-  /// Returns true if the segment [a]->[b] intersects the circle centred at
-  /// [center] with [radius]. Used for swept boss-projectile collision so a fast
-  /// projectile cannot tunnel through the Hunter between frames.
-  bool _segmentIntersectsCircle(
-    Vector2 a,
-    Vector2 b,
-    Vector2 center,
-    double radius,
-  ) {
-    final seg = b - a;
-    final segLen2 = seg.length2;
-    if (segLen2 == 0) return a.distanceTo(center) <= radius;
-    // Project center onto the segment.
-    final t =
-        (((center - a).dot(seg)) / segLen2).clamp(0.0, 1.0);
-    final closest = a + seg * t;
-    return closest.distanceTo(center) <= radius;
+  /// Returns true if the segment [a]->[b] intersects [rect]. Used for swept
+  /// boss-projectile collision against the Hunter's real collision bounds so a
+  /// fast projectile cannot tunnel through the Hunter between frames.
+  bool _segmentIntersectsRect(Vector2 a, Vector2 b, Rect rect) {
+    // Quick rejection using the segment's bounding box.
+    final minX = a.x < b.x ? a.x : b.x;
+    final maxX = a.x > b.x ? a.x : b.x;
+    final minY = a.y < b.y ? a.y : b.y;
+    final maxY = a.y > b.y ? a.y : b.y;
+    if (maxX < rect.left || minX > rect.right ||
+        maxY < rect.top || minY > rect.bottom) {
+      return false;
+    }
+    // Endpoint inside the rect.
+    if (rect.contains(Offset(a.x, a.y)) ||
+        rect.contains(Offset(b.x, b.y))) {
+      return true;
+    }
+    // Liang-Barsky clip against the rect edges.
+    final dx = b.x - a.x;
+    final dy = b.y - a.y;
+    double t0 = 0, t1 = 1;
+    final p = <double>[-dx, dx, -dy, dy];
+    final q = <double>[
+      a.x - rect.left,
+      rect.right - a.x,
+      a.y - rect.top,
+      rect.bottom - a.y,
+    ];
+    for (var i = 0; i < 4; i++) {
+      if (p[i] == 0) {
+        if (q[i] < 0) return false; // parallel and outside
+      } else {
+        final r = q[i] / p[i];
+        if (p[i] < 0) {
+          if (r > t1) return false;
+          if (r > t0) t0 = r;
+        } else {
+          if (r < t0) return false;
+          if (r < t1) t1 = r;
+        }
+      }
+    }
+    return t0 <= t1;
   }
 
   /// Synchronizes the boss HUD notifiers with the live boss (if any).
@@ -593,22 +625,28 @@ class ShadowHuntersGame extends FlameGame {
         p.consume();
         continue;
       }
-      // Damage the Hunter on contact using a swept segment-vs-circle test over
-      // this frame's motion, so a fast projectile cannot tunnel through the
-      // Hunter between frames. Measure to the Hunter's torso centre (~half its
-      // height above the feet) plus a small margin for the projectile radius.
-      final hunterCenter =
-          hunter.position + Vector2(0, -hunter.size.y / 2);
-      final hitRadius =
-          BossProjectile.hitRadius + hunter.size.x / 2;
-      if (_segmentIntersectsCircle(
+      // Damage the Hunter on contact using a SWEPT segment-vs-rect test over
+      // this frame's motion against the Hunter's REAL gameplay collision bounds
+      // (collisionRect). This prevents a fast projectile from tunneling
+      // through the Hunter between frames, and uses the exact hitbox the game
+      // world considers the Hunter (not an assumed position/size).
+      if (_segmentIntersectsRect(
         p.previousPosition,
         p.position,
-        hunterCenter,
-        hitRadius,
+        hunter.collisionRect,
       )) {
+        // Temporary debug log (debug builds only).
+        assert(() {
+          debugPrint('[BossProjectile] PROJECTILE/HUNTER INTERSECTION '
+              'prev=${p.previousPosition} cur=${p.position} '
+              'hunter=${hunter.collisionRect}');
+          debugPrint('[BossProjectile] HUNTER DAMAGE APPLIED '
+              '${bossRangedDamage.toInt()}');
+          debugPrint('[BossProjectile] PROJECTILE REMOVED');
+          return true;
+        }());
         hunter.takeDamage(bossRangedDamage.toInt());
-        p.consume(); // removed immediately, damages once
+        p.consume(); // removed immediately, damages exactly once
         continue;
       }
     }
