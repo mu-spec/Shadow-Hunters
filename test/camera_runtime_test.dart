@@ -19,7 +19,7 @@ void main() {
     await settings.load();
     final game = ShadowHuntersGame(settings: settings);
     await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
-    await tester.pump();
+   await tester.pumpAndSettle();
     game.onGameResize(Vector2(800, 360));
     return game;
   }
