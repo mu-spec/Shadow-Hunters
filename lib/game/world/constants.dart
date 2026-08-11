@@ -65,6 +65,28 @@ const int zombieMaxHealth = 160; // high health
 const double zombieHurtDuration = 0.18;
 const double zombieDeathDuration = 0.45;
 
+// --- Goblin (Milestone 5A) ---
+// A fast, fragile melee enemy: it is a smaller target, has low health, hits
+// quickly with light damage, and occasionally performs a short, telegraphed
+// dodge hop. It reuses the shared Enemy combat pipeline.
+const double goblinSpeed = 150; // fast movement
+const double goblinAttackRange = 38;
+const double goblinAttackCooldown = 0.55; // fast melee attack
+const double goblinAttackDamage = 8; // light
+const int goblinBodyDamage = 7;
+const int goblinHeadDamage = 20; // headshots supported
+const int goblinMaxHealth = 25; // low health
+const double goblinHurtDuration = 0.14;
+const double goblinDeathDuration = 0.3;
+
+// Goblin dodge: cooldown-gated, telegraphed, predictable, boundary-safe.
+const double goblinDodgeCooldown = 3.0; // cannot dodge again for this long
+const double goblinDodgeDistance = 70; // short hop
+const double goblinDodgeSpeed = 320; // quick hop
+const double goblinDodgeTelegraphDuration = 0.3; // windup before the hop
+const double goblinDodgeIntervalMin = 1.5; // occasional
+const double goblinDodgeIntervalMax = 3.0;
+
 /// Colors shared by the prototype battlefield.
 const Color skyTop = Color(0xFF4A6E8C);
 const Color skyBottom = Color(0xFF7FA3B8);

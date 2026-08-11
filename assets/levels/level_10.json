@@ -1,0 +1,1 @@
+{"id":"level_10","name":"Bone and Blade","playerSpawn":{"x":220,"y":600},"enemyType":"skeleton","enemySpawn":{"x":1100,"y":600},"enemySpawns":[{"x":1100,"y":600},{"x":1750,"y":600}],"enemySpawnTypes":["skeleton","goblin"],"enemyCount":2,"battlefield":{"theme":"enchanted_forest","width":2560,"height":720}}

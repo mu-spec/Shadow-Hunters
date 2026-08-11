@@ -1,0 +1,1 @@
+{"id":"level_11","name":"Shambler's Rival","playerSpawn":{"x":220,"y":600},"enemyType":"zombie","enemySpawn":{"x":1200,"y":600},"enemySpawns":[{"x":1200,"y":600},{"x":1900,"y":600}],"enemySpawnTypes":["zombie","goblin"],"enemyCount":2,"battlefield":{"theme":"enchanted_forest","width":2560,"height":720}}

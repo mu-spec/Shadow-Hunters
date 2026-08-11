@@ -13,6 +13,7 @@ import 'controls/pause_button.dart';
 import 'entities/arrow.dart';
 import 'entities/combat_feedback.dart';
 import 'entities/enemy.dart';
+import 'entities/goblin.dart';
 import 'entities/hunter.dart';
 import 'entities/skeleton.dart';
 import 'entities/zombie.dart';
@@ -214,13 +215,21 @@ class ShadowHuntersGame extends FlameGame {
   /// The type comes from [LevelData.enemyTypeFor], which honors per-spawn
   /// `enemySpawnTypes` (enabling mixed levels such as Level 7) and otherwise
   /// falls back to the level's [LevelData.enemyType]. Supports `skeleton`
-  /// (Milestone 2A) and `zombie` (Milestone 4A). All enemies share the [Enemy]
-  /// base, so spawn/recycle/hit/Victory logic is identical regardless of type.
+  /// (Milestone 2A), `zombie` (Milestone 4A), and `goblin` (Milestone 5A). All
+  /// enemies share the [Enemy] base, so spawn/recycle/hit/Victory logic is
+  /// identical regardless of type.
   Enemy _createEnemy({required int index, required Vector2 position}) {
     final patrolEnabled = levelData.battlefield['movingSkeleton'] == true;
     switch (levelData.enemyTypeFor(index)) {
       case 'zombie':
         return Zombie(
+          position: position,
+          hunter: hunter,
+          patrolEnabled: patrolEnabled,
+          battlefieldWidth: _levelWorldWidth,
+        );
+      case 'goblin':
+        return Goblin(
           position: position,
           hunter: hunter,
           patrolEnabled: patrolEnabled,

@@ -19,6 +19,12 @@ void main() {
       'assets/levels/level_3.json',
       'assets/levels/level_4.json',
       'assets/levels/level_5.json',
+      'assets/levels/level_6.json',
+      'assets/levels/level_7.json',
+      'assets/levels/level_8.json',
+      'assets/levels/level_9.json',
+      'assets/levels/level_10.json',
+      'assets/levels/level_11.json',
     ];
     for (final path in required) {
       // rootBundle.loadString throws if the asset is not bundled.
@@ -27,9 +33,9 @@ void main() {
     }
   });
 
-  test('every level 1-8 parses to valid data via the real asset bundle',
+  test('every level 1-11 parses to valid data via the real asset bundle',
       () async {
-    for (var i = 1; i <= 8; i++) {
+    for (var i = 1; i <= 11; i++) {
       final level = await LevelLoader.load('assets/levels/level_$i.json');
       expect(level, isNotNull,
           reason: 'level_$i.json must load from the real asset bundle');

@@ -52,7 +52,7 @@ class LevelLoader {
       final enemyType = value['enemyType'];
       final count = value['enemyCount'];
       final objective = value['objective'];
-      final knownEnemyTypes = const {'skeleton', 'zombie'};
+      final knownEnemyTypes = const {'skeleton', 'zombie', 'goblin'};
       if (player == null || enemy == null || enemySpawns.isEmpty || battlefield is! Map ||
           id is! String || id.isEmpty || name is! String || name.isEmpty ||
           !knownEnemyTypes.contains(enemyType) || count is! int || count < 1) {

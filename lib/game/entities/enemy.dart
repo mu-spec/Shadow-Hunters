@@ -1,3 +1,4 @@
+import 'dart:math' show Random;
 import 'dart:ui';
 
 import 'package:flame/components.dart';
@@ -7,9 +8,11 @@ import 'hunter.dart';
 
 /// Shared enemy combat state machine.
 ///
-/// All melee enemies (Skeleton, Zombie) use this same state flow so gameplay,
-/// the game's hit detection, and the HUD treat every enemy uniformly.
-enum EnemyState { walking, attacking, hurt, dead }
+/// All melee enemies (Skeleton, Zombie, Goblin) use this same state flow so
+/// gameplay, the game's hit detection, and the HUD treat every enemy
+/// uniformly. `dodging` is an optional short repositioning hop used only by
+/// enemies that enable it (e.g. Goblin).
+enum EnemyState { walking, attacking, hurt, dodging, dead }
 
 /// Shared hit-zone enum used by the game's arrow-vs-enemy collision.
 enum EnemyHitZone { head, body }
@@ -45,8 +48,20 @@ abstract class Enemy extends PositionComponent {
     required this.deathDuration,
     this.patrolEnabled = false,
     this.battlefieldWidth = worldWidth,
+    // --- Optional dodge (only enabled by e.g. Goblin) ---
+    this.dodgeEnabled = false,
+    this.dodgeCooldown = 3.0,
+    this.dodgeDistance = 60,
+    this.dodgeSpeed = 300,
+    this.dodgeTelegraphDuration = 0.25,
+    this.dodgeIntervalMin = 2.0,
+    this.dodgeIntervalMax = 4.0,
   })  : _patrolOriginX = position.x,
         health = maxHealth,
+        _dodgeIntervalTimer = _randomDodgeInterval(
+          dodgeIntervalMin,
+          dodgeIntervalMax,
+        ),
         super(
           position: position,
           size: size,
@@ -84,13 +99,40 @@ abstract class Enemy extends PositionComponent {
   double _deathTimer = 0;
   double _hitFlashTimer = 0;
 
+  // --- Dodge state (only active when [dodgeEnabled]) ---
+  bool _dodging = false;
+  double _dodgeCooldownTimer = 0;
+  double _dodgeIntervalTimer = 0;
+  double _dodgeTelegraphTimer = 0;
+  double _dodgeMoveTimer = 0;
+  int _dodgeDirection = 1;
+
   bool get isDead => state == EnemyState.dead;
   bool get isHurt => state == EnemyState.hurt;
   bool get canAttack => !isDead && _attackTimer <= 0 && !hunter.isDead;
 
+  /// Whether this enemy can currently start a dodge: dodge enabled, alive,
+  /// hunter alive, and the cooldown has elapsed.
+  bool get canDodge =>
+      dodgeEnabled && !isDead && !hunter.isDead && _dodgeCooldownTimer <= 0;
+
+  /// True while the enemy is in its short repositioning hop (including the
+  /// telegraph windup).
+  bool get isDodging => _dodging;
+
+  /// True only during the telegraph (windup) phase of a dodge — used by
+  /// renders to signal the dodge before it fires.
+  bool get isDodgeTelegraph => _dodging && _dodgeTelegraphTimer > 0;
+
   /// Non-zero while the enemy is flashing from a hit; used by render to tint
   /// the sprite. Kept accessible to concrete enemies' [render].
   double get hitFlashTimer => _hitFlashTimer;
+
+  /// Pick a random interval in [min, max] for the next "occasional" dodge.
+  static double _randomDodgeInterval(double min, double max) {
+    if (max <= min) return min;
+    return min + Random().nextDouble() * (max - min);
+  }
 
   @override
   void update(double dt) {
@@ -103,9 +145,17 @@ abstract class Enemy extends PositionComponent {
 
     if (_attackTimer > 0) _attackTimer -= dt;
     if (_hitFlashTimer > 0) _hitFlashTimer -= dt;
+    if (_dodgeCooldownTimer > 0) _dodgeCooldownTimer -= dt;
     if (isHurt) {
       _hurtTimer -= dt;
       if (_hurtTimer <= 0) state = EnemyState.walking;
+      return;
+    }
+
+    // If a dodge is in progress, run its telegraph + movement phases and skip
+    // normal chase/attack logic for the duration of the hop.
+    if (_dodging) {
+      _updateDodge(dt);
       return;
     }
 
@@ -134,9 +184,54 @@ abstract class Enemy extends PositionComponent {
           .clamp(wallThickness + size.x / 2, battlefieldWidth - wallThickness - size.x / 2)
           .toDouble();
       state = EnemyState.walking;
+
+      // Occasional, telegraphed short dodge while chasing (not attacking).
+      if (_dodgeIntervalTimer > 0) _dodgeIntervalTimer -= dt;
+      if (canDodge && _dodgeIntervalTimer <= 0) {
+        _startDodge(dx);
+      }
     } else {
       state = EnemyState.attacking;
       if (canAttack) _attack();
+    }
+  }
+
+  /// Begins a telegraphed short dodge hop, moving away from the Hunter (a
+  /// predictable direction). Telegraphs first (no movement), then quickly hops
+  /// a fixed distance, always clamped to the battlefield boundaries.
+  void _startDodge(double dx) {
+    _dodging = true;
+    state = EnemyState.dodging;
+    _dodgeTelegraphTimer = dodgeTelegraphDuration;
+    // Dodge away from the Hunter: if the Hunter is to the right (dx > 0),
+    // dodge left (-1); if the Hunter is to the left (dx < 0), dodge right
+    // (+1). Predictable every time.
+    _dodgeDirection = dx >= 0 ? -1 : 1;
+    _dodgeMoveTimer = dodgeDistance / (dodgeSpeed <= 0 ? 1 : dodgeSpeed);
+  }
+
+  void _updateDodge(double dt) {
+    // Telegraph phase: stand still (windup) so the player can read the dodge.
+    if (_dodgeTelegraphTimer > 0) {
+      _dodgeTelegraphTimer -= dt;
+      return;
+    }
+
+    // Movement phase: quick lateral hop, clamped to the boundaries.
+    _dodgeMoveTimer -= dt;
+    position.x += _dodgeDirection * dodgeSpeed * dt;
+    final minX = wallThickness + size.x / 2;
+    final maxX = battlefieldWidth - wallThickness - size.x / 2;
+    position.x = position.x.clamp(minX, maxX).toDouble();
+
+    if (_dodgeMoveTimer <= 0) {
+      _dodging = false;
+      state = EnemyState.walking;
+      _dodgeCooldownTimer = dodgeCooldown;
+      _dodgeIntervalTimer = _randomDodgeInterval(
+        dodgeIntervalMin,
+        dodgeIntervalMax,
+      );
     }
   }
 
