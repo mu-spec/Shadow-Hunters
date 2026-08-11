@@ -22,6 +22,7 @@ import 'levels/level_loader.dart';
 import 'ui/debug_hud.dart';
 import 'world/battlefield.dart';
 import 'world/constants.dart';
+import 'world/obstacle.dart';
 
 /// The Flame game world for Shadow Hunters.
 ///
@@ -155,8 +156,21 @@ class ShadowHuntersGame extends FlameGame {
       Battlefield(width: configuredWidth, height: configuredHeight),
     );
 
-    // Hunter with the shared aim state, feet on the ground.
-    hunter = Hunter(position: levelData.playerSpawn.clone(), aim: aim, battlefieldWidth: _levelWorldWidth, battlefieldHeight: _levelWorldHeight);
+    // Simple static battlefield geometry (obstacles), added on top of the
+    // background so they render visibly. Enemies ignore them (no pathfinding).
+    for (final rect in levelData.obstacles) {
+      await world.add(Obstacle(rect: rect));
+    }
+
+    // Hunter with the shared aim state, feet on the ground. Pass the level's
+    // obstacles so the Hunter cannot walk through them.
+    hunter = Hunter(
+      position: levelData.playerSpawn.clone(),
+      aim: aim,
+      battlefieldWidth: _levelWorldWidth,
+      battlefieldHeight: _levelWorldHeight,
+      obstacles: levelData.obstacles,
+    );
     await world.add(hunter);
 
     // Build the current level's declared enemy data (Skeleton, Zombie, ...).
@@ -244,6 +258,14 @@ class ShadowHuntersGame extends FlameGame {
           battlefieldWidth: _levelWorldWidth,
         );
     }
+  }
+
+  /// Returns true if the arrow flight segment [a]->[b] crosses any obstacle.
+  bool _segmentHitsObstacle(Vector2 a, Vector2 b) {
+    for (final rect in levelData.obstacles) {
+      if (Obstacle.segmentIntersectsRect(a, b, rect)) return true;
+    }
+    return false;
   }
 
   /// Scales the world so it fills the full screen height (no letterbox bars).
@@ -394,9 +416,20 @@ class ShadowHuntersGame extends FlameGame {
 
     // Drop arrows that have cleaned themselves up (stuck-then-expired or hit
     // their max lifetime), so the tracked list stays in sync with the world.
-    // Resolve each Arrow against every enemy's head/body hit zones.
+    // Resolve each Arrow against obstacles first (so it cannot pass through a
+    // solid obstacle), then against every enemy's head/body hit zones.
     for (final arrow in List<Arrow>.from(arrows)) {
       if (!arrow.flying || _spentArrows.contains(arrow)) continue;
+
+      // Obstacle collision: the arrow stops at the first obstacle its flight
+      // segment crosses, so it never passes through solid geometry.
+      final prevPos = previousArrowPositions[arrow] ?? arrow.position;
+      if (_segmentHitsObstacle(prevPos, arrow.position)) {
+        _spentArrows.add(arrow);
+        arrow.removeFromParent();
+        continue;
+      }
+
       for (final enemy in List<Enemy>.from(enemies)) {
         if (enemy.isDead) continue;
         final zone = enemy.hitZoneAlongPath(

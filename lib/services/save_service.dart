@@ -5,8 +5,8 @@ class SaveService {
   static const _keyCompletedLevels = 'completed_levels';
 
   /// Total number of levels in the game (V1: 5 + Levels 6-8 in 4B +
-  /// Levels 9-11 in 5B).
-  static const int totalLevels = 11;
+  /// Levels 9-11 in 5B + Levels 12-14 in 6A).
+  static const int totalLevels = 14;
 
   int _unlockedLevel = 1;
   final Set<int> _completed = {};

@@ -30,6 +30,7 @@ class Hunter extends PositionComponent {
     required this.aim,
     this.battlefieldWidth = worldWidth,
     this.battlefieldHeight = worldHeight,
+    this.obstacles = const [],
   })
       : super(
           size: Vector2(48, 76),
@@ -40,6 +41,9 @@ class Hunter extends PositionComponent {
   final AimState aim;
   final double battlefieldWidth;
   final double battlefieldHeight;
+
+  /// Simple static obstacles the Hunter cannot walk through.
+  final List<Rect> obstacles;
 
   /// How many health points the hunter has.
   int health = hunterMaxHealth;
@@ -128,6 +132,7 @@ class Hunter extends PositionComponent {
     }
 
     // Apply horizontal movement, scaled by dt (frame-rate independent).
+    final oldX = position.x;
     if (moveDirection != 0) {
       position.x += moveDirection * hunterSpeed * dt;
     }
@@ -138,6 +143,12 @@ class Hunter extends PositionComponent {
         .clamp(hunterBoundaryLeft, (battlefieldWidth - wallThickness - hunterHalfWidth))
         .toDouble();
 
+    // Block movement into a solid obstacle: if the new position overlaps an
+    // obstacle, revert to the previous x so the Hunter never walks through.
+    if (_overlapsObstacle()) {
+      position.x = oldX;
+    }
+
     // Stay anchored on the ground (feet at groundY).
     position.y = battlefieldHeight - groundHeight;
 
@@ -145,6 +156,21 @@ class Hunter extends PositionComponent {
     if (moveDirection != 0) {
       facing = moveDirection.toDouble();
     }
+  }
+
+  /// Returns true if the Hunter's body rectangle overlaps any solid obstacle.
+  bool _overlapsObstacle() {
+    if (obstacles.isEmpty) return false;
+    final body = Rect.fromLTWH(
+      position.x - size.x / 2,
+      position.y - size.y,
+      size.x,
+      size.y,
+    );
+    for (final o in obstacles) {
+      if (body.overlaps(o)) return true;
+    }
+    return false;
   }
 
   @override

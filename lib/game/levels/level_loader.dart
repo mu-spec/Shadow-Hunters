@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
@@ -81,6 +82,15 @@ class LevelLoader {
         }
       }
 
+      // Simple static rectangular obstacles (V1 geometry), from
+      // battlefield.obstacles = [{x, y, width, height}]. Each must be a valid
+      // positive-size rect; an invalid entry invalidates the whole level.
+      final obstacles = _obstacles(battlefield['obstacles']);
+      if (obstacles == null) {
+        debugPrint('[LevelLoader] invalid obstacles in level "$id"');
+        return null;
+      }
+
       return LevelData(
         id: id,
         name: name,
@@ -92,11 +102,35 @@ class LevelLoader {
         battlefield: Map<String, dynamic>.from(battlefield),
         objective: objective is String && objective.isNotEmpty ? objective : null,
         enemySpawnTypes: spawnTypes,
+        obstacles: obstacles,
       );
     } catch (e) {
       debugPrint('[LevelLoader] unexpected error while parsing level: $e');
       return null;
     }
+  }
+
+  /// Parses `battlefield.obstacles` into world-space [Rect]s.
+  ///
+  /// Returns null if the field is present but malformed (so the level fails
+  /// safely); returns an empty list if absent. Each obstacle is
+  /// `{x, y, width, height}` with positive width/height.
+  static List<Rect>? _obstacles(dynamic value) {
+    if (value == null) return <Rect>[];
+    if (value is! List) return null;
+    final rects = <Rect>[];
+    for (final entry in value) {
+      if (entry is! Map) return null;
+      final x = entry['x'];
+      final y = entry['y'];
+      final w = entry['width'];
+      final h = entry['height'];
+      if (x is! num || y is! num || w is! num || h is! num) return null;
+      if (!x.isFinite || !y.isFinite || !w.isFinite || !h.isFinite) return null;
+      if (w <= 0 || h <= 0) return null;
+      rects.add(Rect.fromLTWH(x.toDouble(), y.toDouble(), w.toDouble(), h.toDouble()));
+    }
+    return rects;
   }
 
   static List<Vector2>? _vectors(dynamic value) {
