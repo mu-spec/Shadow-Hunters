@@ -1,4 +1,4 @@
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:flame/components.dart' show Vector2;
 import 'package:flame/game.dart' show GameWidget;
@@ -78,10 +78,13 @@ void main() {
         final level = await LevelLoader.load('assets/levels/level_$lvl.json');
         expect(level, isNotNull);
         final points = <Rect>[
-          Rect.fromCircle(center: level!.playerSpawn.toOffset(), radius: 20),
+          Rect.fromCircle(
+            center: Offset(level!.playerSpawn.x, level.playerSpawn.y),
+            radius: 20,
+          ),
         ];
         for (final s in level.enemySpawns) {
-          points.add(Rect.fromCircle(center: s.toOffset(), radius: 20));
+          points.add(Rect.fromCircle(center: Offset(s.x, s.y), radius: 20));
         }
         for (final o in level.obstacles) {
           for (final p in points) {

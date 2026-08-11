@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
