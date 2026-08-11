@@ -175,7 +175,8 @@ void main() {
       final settings = SettingsService();
       await settings.load();
       mockLevelAssets(tester);
-      ShadowHuntersGame? game;
+      // Pump the GameScreen inside runAsync so the (mocked) asset load that
+      // GameWidget kicks off can complete on the real event loop.
       await tester.runAsync(() async {
         await tester.pumpWidget(
           SettingsScope(
@@ -184,14 +185,20 @@ void main() {
           ),
         );
         await tester.pump();
-        game = tester
-            .widget<GameWidget>(find.byType(GameWidget))
-            .game as ShadowHuntersGame;
-        await game!.toBeLoaded();
       });
       await tester.pump();
-      final g = game!;
-      addTearDown(g.dispose);
+
+      // Grab the game from the mounted GameWidget AFTER runAsync (the widget
+      // tree is fully built once we're back on the test clock).
+      final game =
+          tester.widget<GameWidget>(find.byType(GameWidget)).game as ShadowHuntersGame;
+      addTearDown(game.dispose);
+      final g = game;
+      // Ensure the boss level finished loading (asset load needs runAsync).
+      await tester.runAsync(() async {
+        await g.toBeLoaded();
+      });
+      await tester.pump();
 
       // Dismiss the intro, then kill the boss -> victory.
       g.dismissBossIntro();
