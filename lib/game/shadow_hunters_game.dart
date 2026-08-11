@@ -279,7 +279,7 @@ class ShadowHuntersGame extends FlameGame {
           hunter: hunter,
           battlefieldWidth: _levelWorldWidth,
           obstacles: levelData.obstacles,
-          onRangedFire: _fireBossRanged,
+          onRangedFire: fireBossRanged,
         );
       case 'zombie':
         return Zombie(
@@ -310,7 +310,7 @@ class ShadowHuntersGame extends FlameGame {
   }
 
   /// Spawns a boss ranged projectile at [from] travelling along [dir].
-  Future<void> _fireBossRanged(Vector2 from, Vector2 dir) async {
+  Future<void> fireBossRanged(Vector2 from, Vector2 dir) async {
     final p = BossProjectile(
       position: from,
       direction: dir,
@@ -327,6 +327,25 @@ class ShadowHuntersGame extends FlameGame {
       if (Obstacle.segmentIntersectsRect(a, b, rect)) return true;
     }
     return false;
+  }
+
+  /// Returns true if the segment [a]->[b] intersects the circle centred at
+  /// [center] with [radius]. Used for swept boss-projectile collision so a fast
+  /// projectile cannot tunnel through the Hunter between frames.
+  bool _segmentIntersectsCircle(
+    Vector2 a,
+    Vector2 b,
+    Vector2 center,
+    double radius,
+  ) {
+    final seg = b - a;
+    final segLen2 = seg.length2;
+    if (segLen2 == 0) return a.distanceTo(center) <= radius;
+    // Project center onto the segment.
+    final t =
+        (((center - a).dot(seg)) / segLen2).clamp(0.0, 1.0);
+    final closest = a + seg * t;
+    return closest.distanceTo(center) <= radius;
   }
 
   /// Synchronizes the boss HUD notifiers with the live boss (if any).
@@ -568,18 +587,28 @@ class ShadowHuntersGame extends FlameGame {
       if (p.spent) continue;
       // Stop projectiles at solid obstacles.
       if (_segmentHitsObstacle(
-        p.position - p.direction * 8,
+        p.previousPosition,
         p.position,
       )) {
         p.consume();
         continue;
       }
-      // Damage the Hunter on contact (measure to the Hunter's torso centre,
-      // ~half its height above the feet).
-      final hunterCenter = hunter.position + Vector2(0, -hunter.size.y / 2);
-      if (p.position.distanceTo(hunterCenter) < BossProjectile.hitRadius) {
+      // Damage the Hunter on contact using a swept segment-vs-circle test over
+      // this frame's motion, so a fast projectile cannot tunnel through the
+      // Hunter between frames. Measure to the Hunter's torso centre (~half its
+      // height above the feet) plus a small margin for the projectile radius.
+      final hunterCenter =
+          hunter.position + Vector2(0, -hunter.size.y / 2);
+      final hitRadius =
+          BossProjectile.hitRadius + hunter.size.x / 2;
+      if (_segmentIntersectsCircle(
+        p.previousPosition,
+        p.position,
+        hunterCenter,
+        hitRadius,
+      )) {
         hunter.takeDamage(bossRangedDamage.toInt());
-        p.consume();
+        p.consume(); // removed immediately, damages once
         continue;
       }
     }

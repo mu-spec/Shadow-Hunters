@@ -31,18 +31,32 @@ class BossProjectile extends PositionComponent {
 
   bool _spent = false;
 
+  /// Position before the most recent movement step. Used for swept collision
+  /// so a fast projectile cannot tunnel through the Hunter between frames.
+  late Vector2 _prevPosition;
+
   /// True once the projectile has been consumed (hit or left the world).
   bool get spent => _spent;
 
   /// Unit direction of travel.
   Vector2 get direction => _dir;
 
+  /// The projectile's position before its latest movement step.
+  Vector2 get previousPosition => _prevPosition;
+
   double get rotation => atan2(_dir.y, _dir.x);
+
+  @override
+  void onMount() {
+    super.onMount();
+    _prevPosition = position.clone();
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
     if (_spent) return;
+    _prevPosition.setFrom(position);
     position.add(_dir * world.bossRangedSpeed * dt);
 
     // Leave the battlefield.
