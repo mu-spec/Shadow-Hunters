@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shadow_hunters/game/shadow_hunters_game.dart';
 import 'package:shadow_hunters/services/settings_service.dart';
 
+import 'helpers/asset_mock.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -15,11 +17,23 @@ void main() {
   // Loads the real game laid out in a GameWidget (so Flame gives it a size and
   // runs onLoad correctly), then applies a landscape size.
   Future<ShadowHuntersGame> makeGame(WidgetTester tester) async {
+    // Mock the flutter/assets platform channel so the game's onLoad() can read
+    // the level JSON. In `flutter test` that channel returns null by default
+    // (hence "Unable to load asset"), and the error escapes as unhandled async
+    // work after the test completes. We serve the real level files from disk.
+    mockLevelAssets(tester);
+
     final settings = SettingsService();
     await settings.load();
     final game = ShadowHuntersGame(settings: settings);
-    await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
-   await tester.pumpAndSettle();
+    // onLoad() awaits the (now mocked) asset load. runAsync runs the real event
+    // loop so the File I/O + toBeLoaded() future actually complete; otherwise
+    // the async load never finishes on testWidgets' fake clock.
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
+      await game.toBeLoaded();
+    });
+    await tester.pump();
     game.onGameResize(Vector2(800, 360));
     return game;
   }

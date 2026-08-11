@@ -8,6 +8,8 @@ import 'package:shadow_hunters/screens/main_menu_screen.dart';
 import 'package:shadow_hunters/screens/settings_screen.dart';
 import 'package:shadow_hunters/services/settings_service.dart';
 
+import 'helpers/asset_mock.dart';
+
 void main() {
   Widget wrap(Widget child) => SettingsScope(
         service: SettingsService(),
@@ -46,7 +48,15 @@ void main() {
   });
 
   testWidgets('Game screen hosts a Flame widget', (tester) async {
-    await tester.pumpWidget(wrap(const GameScreen()));
+    // The GameScreen mounts a real ShadowHuntersGame whose onLoad() reads level
+    // JSON through the flutter/assets channel. Mock that channel so the load
+    // succeeds, and pump on the real event loop so the async load completes
+    // (instead of being reported as unhandled pending async work at test end).
+    mockLevelAssets(tester);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(wrap(const GameScreen()));
+      await tester.pump();
+    });
     expect(find.byType(GameScreen), findsOneWidget);
     // A Flutter widget is present; Flame renders inside it.
     expect(find.byType(Scaffold), findsWidgets);
