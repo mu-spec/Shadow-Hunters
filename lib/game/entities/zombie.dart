@@ -17,6 +17,7 @@ class Zombie extends Enemy {
     required super.hunter,
     super.patrolEnabled = false,
     super.battlefieldWidth = worldWidth,
+    super.obstacles = const [],
   }) : super(
           size: Vector2(58, 84), // larger target than the Skeleton
           moveSpeed: zombieSpeed,

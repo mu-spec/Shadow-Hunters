@@ -18,6 +18,7 @@ class Goblin extends Enemy {
     required super.hunter,
     super.patrolEnabled = false,
     super.battlefieldWidth = worldWidth,
+    super.obstacles = const [],
   }) : super(
           size: Vector2(36, 56), // smaller target than the Skeleton (44x72)
           moveSpeed: goblinSpeed,

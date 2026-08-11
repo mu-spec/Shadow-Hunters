@@ -48,6 +48,7 @@ abstract class Enemy extends PositionComponent {
     required this.deathDuration,
     this.patrolEnabled = false,
     this.battlefieldWidth = worldWidth,
+    this.obstacles = const [],
     // --- Optional dodge (only enabled by e.g. Goblin) ---
     this.dodgeEnabled = false,
     this.dodgeCooldown = 3.0,
@@ -71,6 +72,9 @@ abstract class Enemy extends PositionComponent {
   final Hunter hunter;
   final bool patrolEnabled;
   final double battlefieldWidth;
+
+  /// Simple static obstacles the enemy cannot walk through.
+  final List<Rect> obstacles;
 
   // --- Stats (supplied by the concrete enemy) ---
   final double moveSpeed;
@@ -143,6 +147,28 @@ abstract class Enemy extends PositionComponent {
     return min + Random().nextDouble() * (max - min);
   }
 
+  /// World-space body rect (feet at [position], extending up [size.y]).
+  Rect get _bodyRect =>
+      Rect.fromLTWH(position.x - size.x / 2, position.y - size.y, size.x, size.y);
+
+  /// Returns true if the enemy's body would overlap any solid obstacle.
+  bool _overlapsObstacle(Rect body) {
+    for (final o in obstacles) {
+      if (body.overlaps(o)) return true;
+    }
+    return false;
+  }
+
+  /// Blocks a lateral move: if the enemy would enter an obstacle, revert to
+  /// [oldX]. Simple and deterministic — no pathfinding. Enemies stop at the
+  /// obstacle edge and can still attack if the Hunter comes within range, so
+  /// they are never left permanently stuck or able to pass through solid rock.
+  void _blockMove(double oldX) {
+    if (_overlapsObstacle(_bodyRect)) {
+      position.x = oldX;
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -172,6 +198,7 @@ abstract class Enemy extends PositionComponent {
     if (dx.abs() > attackRange) {
       // Level 4 patrols in a small predictable band until Hunter approaches.
       final patrolling = patrolEnabled && dx.abs() > 180;
+      final oldX = position.x;
       if (patrolling) {
         final left = (_patrolOriginX - 90).clamp(
           wallThickness + size.x / 2,
@@ -192,6 +219,8 @@ abstract class Enemy extends PositionComponent {
       position.x = position.x
           .clamp(wallThickness + size.x / 2, battlefieldWidth - wallThickness - size.x / 2)
           .toDouble();
+      // Do not walk through a solid obstacle.
+      _blockMove(oldX);
       state = EnemyState.walking;
 
       // Occasional, telegraphed short dodge while chasing (not attacking).
@@ -226,12 +255,15 @@ abstract class Enemy extends PositionComponent {
       return;
     }
 
-    // Movement phase: quick lateral hop, clamped to the boundaries.
+    // Movement phase: quick lateral hop, clamped to the boundaries. The dodge
+    // must not carry the Goblin through a solid obstacle.
     _dodgeMoveTimer -= dt;
+    final oldX = position.x;
     position.x += _dodgeDirection * dodgeSpeed * dt;
     final minX = wallThickness + size.x / 2;
     final maxX = battlefieldWidth - wallThickness - size.x / 2;
     position.x = position.x.clamp(minX, maxX).toDouble();
+    _blockMove(oldX);
 
     if (_dodgeMoveTimer <= 0) {
       _dodging = false;

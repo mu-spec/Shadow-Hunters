@@ -241,6 +241,7 @@ class ShadowHuntersGame extends FlameGame {
           hunter: hunter,
           patrolEnabled: patrolEnabled,
           battlefieldWidth: _levelWorldWidth,
+          obstacles: levelData.obstacles,
         );
       case 'goblin':
         return Goblin(
@@ -248,6 +249,7 @@ class ShadowHuntersGame extends FlameGame {
           hunter: hunter,
           patrolEnabled: patrolEnabled,
           battlefieldWidth: _levelWorldWidth,
+          obstacles: levelData.obstacles,
         );
       case 'skeleton':
       default:
@@ -256,6 +258,7 @@ class ShadowHuntersGame extends FlameGame {
           hunter: hunter,
           patrolEnabled: patrolEnabled,
           battlefieldWidth: _levelWorldWidth,
+          obstacles: levelData.obstacles,
         );
     }
   }

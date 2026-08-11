@@ -18,6 +18,7 @@ class Skeleton extends Enemy {
     required super.hunter,
     super.patrolEnabled = false,
     super.battlefieldWidth = worldWidth,
+    super.obstacles = const [],
   }) : super(
           size: Vector2(44, 72),
           moveSpeed: skeletonSpeed,
