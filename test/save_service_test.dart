@@ -90,4 +90,29 @@ void main() {
     expect(restored.unlockedLevel, 14);
     expect(restored.completedLevels, containsAll([11, 12, 13]));
   });
+
+  test('level 15 (boss) unlocks and persists', () async {
+    final save = SaveService();
+    await save.load();
+    await save.completeLevel(14);
+    expect(save.unlockedLevel, 15);
+
+    final restored = SaveService();
+    await restored.load();
+    expect(restored.unlockedLevel, 15);
+  });
+
+  test('completing level 15 marks V1 complete and persists', () async {
+    final save = SaveService();
+    await save.load();
+    expect(save.isV1Complete, isFalse);
+
+    await save.completeLevel(15);
+    expect(save.isV1Complete, isTrue);
+    expect(save.completedLevels, contains(15));
+
+    final restored = SaveService();
+    await restored.load();
+    expect(restored.isV1Complete, isTrue);
+  });
 }

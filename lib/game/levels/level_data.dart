@@ -16,6 +16,8 @@ class LevelData {
     this.objective,
     this.enemySpawnTypes,
     this.obstacles = const [],
+    this.bossName,
+    this.bossIntro,
   });
 
   final String id;
@@ -37,6 +39,12 @@ class LevelData {
   /// in world coordinates (top-left + width + height). Empty for levels with
   /// no geometry. Parsed from `battlefield.obstacles` in the level JSON.
   final List<Rect> obstacles;
+
+  /// Boss display name (e.g. "FOREST GUARDIAN"). Null for non-boss levels.
+  final String? bossName;
+
+  /// Short intro line shown on the boss intro screen.
+  final String? bossIntro;
 
   /// Returns the enemy type for the spawn at [index]: the per-spawn type if
   /// one is declared for that index, otherwise the level's [enemyType].

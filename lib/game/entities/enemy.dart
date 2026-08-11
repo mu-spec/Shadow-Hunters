@@ -137,6 +137,9 @@ abstract class Enemy extends PositionComponent {
   bool get isHurt => state == EnemyState.hurt;
   bool get canAttack => !isDead && _attackTimer <= 0 && !hunter.isDead;
 
+  /// True while the enemy is climbing over an obstacle (obstacle avoidance).
+  bool get isAvoiding => _avoiding;
+
   /// Whether this enemy can currently start a dodge: dodge enabled, alive,
   /// hunter alive, and the cooldown has elapsed.
   bool get canDodge =>
@@ -181,6 +184,10 @@ abstract class Enemy extends PositionComponent {
       position.x = oldX;
     }
   }
+
+  /// True if the enemy's body would overlap an obstacle if its feet were at
+  /// [feetX]. Exposed so specialized enemies (e.g. the boss) can re-check.
+  bool overlapsObstacleAt(double feetX) => _blockedBy(feetX) != null;
 
   /// Returns the first obstacle whose [rect] the enemy's body (at the given
   /// feet x, current y) would overlap, or null if none.

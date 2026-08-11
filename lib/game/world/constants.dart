@@ -87,6 +87,31 @@ const double goblinDodgeTelegraphDuration = 0.3; // windup before the hop
 const double goblinDodgeIntervalMin = 1.5; // occasional
 const double goblinDodgeIntervalMax = 3.0;
 
+// --- Forest Guardian (Milestone 7A — the V1 boss) ---
+// A large, slow, high-health boss with a strong melee attack and one simple,
+// telegraphed ranged attack. It has a weak head/weak point that grants bonus
+// damage. AI stays simple and predictable (no phases, no minions, no magic).
+const double bossSpeed = 26; // slow movement
+const double bossAttackRange = 90; // long reach for its size
+const double bossAttackCooldown = 2.2; // slow, strong melee
+const double bossAttackDamage = 34; // strong melee attack
+const int bossBodyDamage = 18;
+const int bossHeadDamage = 45; // weak point: bonus damage
+const int bossMaxHealth = 600; // high health
+const double bossHurtDuration = 0.2;
+const double bossDeathDuration = 0.7;
+
+// Ranged attack: one simple projectile, clearly telegraphed.
+const double bossRangedCooldown = 3.0; // between ranged attacks
+const double bossRangedSpeed = 260; // slow, dodgeable projectile
+const double bossRangedDamage = 22;
+const double bossRangedWarnDuration = 0.7; // clear warning before firing
+const double bossRangedMinDistance = 380; // only uses ranged at range
+
+// Weak point geometry (head): smaller than the body, sits higher.
+const double bossHeadRadius = 16;
+const double bossHeadOffsetY = -150;
+
 /// Colors shared by the prototype battlefield.
 const Color skyTop = Color(0xFF4A6E8C);
 const Color skyBottom = Color(0xFF7FA3B8);

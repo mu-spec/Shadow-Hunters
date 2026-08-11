@@ -52,7 +52,7 @@ class LevelLoader {
       final enemyType = value['enemyType'];
       final count = value['enemyCount'];
       final objective = value['objective'];
-      final knownEnemyTypes = const {'skeleton', 'zombie', 'goblin'};
+      final knownEnemyTypes = const {'skeleton', 'zombie', 'goblin', 'forest_guardian'};
       if (player == null || enemy == null || enemySpawns.isEmpty || battlefield is! Map ||
           id is! String || id.isEmpty || name is! String || name.isEmpty ||
           !knownEnemyTypes.contains(enemyType) || count is! int || count < 1) {
@@ -102,6 +102,12 @@ class LevelLoader {
         objective: objective is String && objective.isNotEmpty ? objective : null,
         enemySpawnTypes: spawnTypes,
         obstacles: obstacles,
+        bossName: battlefield['bossName'] is String
+            ? battlefield['bossName'] as String
+            : null,
+        bossIntro: battlefield['bossIntro'] is String
+            ? battlefield['bossIntro'] as String
+            : null,
       );
     } catch (e) {
       debugPrint('[LevelLoader] unexpected error while parsing level: $e');

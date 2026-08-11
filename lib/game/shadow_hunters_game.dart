@@ -11,8 +11,10 @@ import 'controls/aim_control.dart';
 import 'controls/movement_joystick.dart';
 import 'controls/pause_button.dart';
 import 'entities/arrow.dart';
+import 'entities/boss_projectile.dart';
 import 'entities/combat_feedback.dart';
 import 'entities/enemy.dart';
+import 'entities/forest_guardian.dart';
 import 'entities/goblin.dart';
 import 'entities/hunter.dart';
 import 'entities/skeleton.dart';
@@ -58,6 +60,16 @@ class ShadowHuntersGame extends FlameGame {
   final ValueNotifier<GameStatus> statusNotifier = ValueNotifier<GameStatus>(GameStatus.playing);
   bool _completionReported = false;
 
+  /// Notifies the Flutter overlay of the boss's current health ratio (0..1),
+  /// or -1 when there is no boss. Used for the boss health bar.
+  final ValueNotifier<double> bossHealthNotifier = ValueNotifier<double>(-1);
+
+  /// Boss name shown in the HUD ('' when no boss).
+  final ValueNotifier<String> bossNameNotifier = ValueNotifier<String>('');
+
+  /// Whether the boss intro overlay should be visible.
+  final ValueNotifier<bool> bossIntroVisible = ValueNotifier<bool>(false);
+
   /// When true, the on-screen diagnostic debug HUD is shown. Hidden by default
   /// for normal players; kept behind this flag for development/diagnostics.
   /// Named `showDebugHud` (not `debugMode`) to avoid overriding Flame's
@@ -81,6 +93,20 @@ class ShadowHuntersGame extends FlameGame {
   /// treats them uniformly through the shared [Enemy] interface.
   final List<Enemy> enemies = [];
   final Set<Arrow> _spentArrows = {};
+
+  /// Live boss ranged projectiles.
+  final List<BossProjectile> bossProjectiles = [];
+
+  /// Whether the current level is the boss level.
+  bool get isBossLevel => levelData.enemyType == 'forest_guardian';
+
+  /// The active boss, if any.
+  ForestGuardian? get boss {
+    for (final e in enemies) {
+      if (e is ForestGuardian) return e;
+    }
+    return null;
+  }
 
   /// Authoritative total number of enemies the level spawned. Driven by the
   /// live [enemies] list so the HUD and Victory always agree with what is
@@ -122,6 +148,9 @@ class ShadowHuntersGame extends FlameGame {
   void dispose() {
     pauseNotifier.dispose();
     statusNotifier.dispose();
+    bossHealthNotifier.dispose();
+    bossNameNotifier.dispose();
+    bossIntroVisible.dispose();
     super.dispose();
   }
 
@@ -222,6 +251,15 @@ class ShadowHuntersGame extends FlameGame {
     camera.viewfinder.position = Vector2.zero();
 
     _logDiagnostics('onLoad');
+
+    // Show the boss intro on a boss level, pausing the simulation until the
+    // player taps to begin.
+    bossIntroVisible.value = isBossLevel;
+    if (isBossLevel) {
+      pauseEngine();
+    }
+    // Populate the boss HUD immediately (health bar + name).
+    _updateBossHud();
   }
 
   /// Constructs the enemy for spawn [index] in the current level.
@@ -235,6 +273,14 @@ class ShadowHuntersGame extends FlameGame {
   Enemy _createEnemy({required int index, required Vector2 position}) {
     final patrolEnabled = levelData.battlefield['movingSkeleton'] == true;
     switch (levelData.enemyTypeFor(index)) {
+      case 'forest_guardian':
+        return ForestGuardian(
+          position: position,
+          hunter: hunter,
+          battlefieldWidth: _levelWorldWidth,
+          obstacles: levelData.obstacles,
+          onRangedFire: _fireBossRanged,
+        );
       case 'zombie':
         return Zombie(
           position: position,
@@ -263,12 +309,46 @@ class ShadowHuntersGame extends FlameGame {
     }
   }
 
+  /// Spawns a boss ranged projectile at [from] travelling along [dir].
+  Future<void> _fireBossRanged(Vector2 from, Vector2 dir) async {
+    final p = BossProjectile(
+      position: from,
+      direction: dir,
+      worldWidth: _levelWorldWidth,
+      worldHeight: _levelWorldHeight,
+    );
+    bossProjectiles.add(p);
+    await world.add(p);
+  }
+
   /// Returns true if the arrow flight segment [a]->[b] crosses any obstacle.
   bool _segmentHitsObstacle(Vector2 a, Vector2 b) {
     for (final rect in levelData.obstacles) {
       if (Obstacle.segmentIntersectsRect(a, b, rect)) return true;
     }
     return false;
+  }
+
+  /// Synchronizes the boss HUD notifiers with the live boss (if any).
+  void _updateBossHud() {
+    final b = boss;
+    if (b == null) {
+      bossHealthNotifier.value = -1;
+      bossNameNotifier.value = '';
+      return;
+    }
+    bossNameNotifier.value = levelData.bossName ?? 'FOREST GUARDIAN';
+    bossHealthNotifier.value =
+        (b.health / b.maxHealth).clamp(0.0, 1.0).toDouble();
+  }
+
+  /// Hides the boss intro overlay (called by the Flutter UI).
+  void dismissBossIntro() {
+    bossIntroVisible.value = false;
+    // Resume the simulation that was paused for the intro (only if paused).
+    if (paused) {
+      resumeEngine();
+    }
   }
 
   /// Scales the world so it fills the full screen height (no letterbox bars).
@@ -351,6 +431,11 @@ class ShadowHuntersGame extends FlameGame {
     }
     arrows.clear();
     _spentArrows.clear();
+    // --- Boss projectiles ---
+    for (final p in bossProjectiles) {
+      p.removeFromParent();
+    }
+    bossProjectiles.clear();
     for (final enemy in enemies) {
       enemy.removeFromParent();
     }
@@ -367,6 +452,11 @@ class ShadowHuntersGame extends FlameGame {
     statusNotifier.value = GameStatus.playing;
     // Allow the level to be reported as completed again after a retry/restart.
     _completionReported = false;
+    // Re-show the boss intro on restart for boss levels (pauses until tapped).
+    bossIntroVisible.value = isBossLevel;
+    if (isBossLevel) {
+      pauseEngine();
+    }
 
     // --- Hunter: spawn, full health, idle, default facing, zero input ---
     hunter.reset(levelData.playerSpawn.clone());
@@ -389,8 +479,10 @@ class ShadowHuntersGame extends FlameGame {
     _followLogTimer = 0;
     camera.viewfinder.position = Vector2.zero();
 
-    // --- Pause: ensure we return to normal unpaused gameplay ---
-    if (paused) {
+    // --- Pause: return to normal unpaused gameplay. On a boss level the
+    // intro is being shown, so keep the engine paused until the player taps to
+    // begin (the pause is released by dismissBossIntro).
+    if (paused && !bossIntroVisible.value) {
       resumeEngine();
     }
     pauseNotifier.value = false;
@@ -416,6 +508,9 @@ class ShadowHuntersGame extends FlameGame {
         onLevelCompleted?.call();
       }
     }
+
+    // Keep the boss HUD in sync with the live boss.
+    _updateBossHud();
 
     // Drop arrows that have cleaned themselves up (stuck-then-expired or hit
     // their max lifetime), so the tracked list stays in sync with the world.
@@ -467,6 +562,29 @@ class ShadowHuntersGame extends FlameGame {
       if (removed) _spentArrows.remove(a);
       return removed;
     });
+
+    // --- Boss ranged projectile resolution ---
+    for (final p in List<BossProjectile>.from(bossProjectiles)) {
+      if (p.spent) continue;
+      // Stop projectiles at solid obstacles.
+      if (_segmentHitsObstacle(
+        p.position - p.direction * 8,
+        p.position,
+      )) {
+        p.consume();
+        continue;
+      }
+      // Damage the Hunter on contact (measure to the Hunter's torso centre,
+      // ~half its height above the feet).
+      final hunterCenter = hunter.position + Vector2(0, -hunter.size.y / 2);
+      if (p.position.distanceTo(hunterCenter) < BossProjectile.hitRadius) {
+        hunter.takeDamage(bossRangedDamage.toInt());
+        p.consume();
+        continue;
+      }
+    }
+    bossProjectiles.removeWhere((p) => !p.isMounted);
+
     // Only prune enemies that have actually finished dying and left the world.
     // A live enemy must never be dropped from tracking: if it is removed (e.g.
     // while its mount is still pending right after a Restart), the HUD enemy

@@ -5,13 +5,17 @@ class SaveService {
   static const _keyCompletedLevels = 'completed_levels';
 
   /// Total number of levels in the game (V1: 5 + Levels 6-8 in 4B +
-  /// Levels 9-11 in 5B + Levels 12-14 in 6A).
-  static const int totalLevels = 14;
+  /// Levels 9-11 in 5B + Levels 12-14 in 6A + Level 15 boss in 7A).
+  static const int totalLevels = 15;
 
   int _unlockedLevel = 1;
   final Set<int> _completed = {};
   int get unlockedLevel => _unlockedLevel;
   Set<int> get completedLevels => Set.unmodifiable(_completed);
+
+  /// True once the final boss level (15) has been completed — the V1 campaign
+  /// is fully cleared. Used to show the V1-complete state.
+  bool get isV1Complete => _completed.contains(totalLevels);
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     _unlockedLevel = (prefs.getInt(_keyUnlockedLevel) ?? 1).clamp(1, totalLevels).toInt();
