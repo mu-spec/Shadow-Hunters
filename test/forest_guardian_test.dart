@@ -187,7 +187,9 @@ void main() {
       addTearDown(game.dispose);
 
       // Let the real (mocked) asset load finish, then dismiss the intro.
-      await tester.runAsync(() => game.toBeLoaded());
+      await tester.runAsync(() async {
+        await game.toBeLoaded();
+      });
       await tester.pump();
       game.dismissBossIntro();
       await tester.pump();
