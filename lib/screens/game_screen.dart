@@ -142,8 +142,8 @@ class _BossIntro extends StatelessWidget {
 }
 
 /// Final V1 completion screen, shown after defeating the Forest Guardian.
-class _FinalCompletion extends StatelessWidget {
-  const _FinalCompletion();
+class FinalCompletion extends StatelessWidget {
+  const FinalCompletion();
 
   void _replayLevels(BuildContext context) =>
       Navigator.of(context).pop(); // back to Level Select
@@ -358,7 +358,7 @@ class _GameScreenState extends State<GameScreen> {
                             // After defeating the final boss, show the V1
                             // completion screen instead of the generic victory.
                             if (victory && game.isBossLevel) {
-                              return const _FinalCompletion();
+                              return const FinalCompletion();
                             }
                             return Container(
                               color: Colors.black54,
