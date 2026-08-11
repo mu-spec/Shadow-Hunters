@@ -3,20 +3,20 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import '../world/constants.dart';
+import '../world/constants.dart' as world;
 
 /// The Forest Guardian's simple ranged projectile.
 ///
-/// Travels in a straight line at [bossRangedSpeed]. It damages the Hunter on
-/// contact and is removed when it leaves the battlefield or hits an obstacle.
-/// There is only this one ranged attack (no variants), and it is telegraphed
-/// by the boss before firing.
+/// Travels in a straight line at [world.bossRangedSpeed]. It damages the Hunter
+/// on contact and is removed when it leaves the battlefield or hits an
+/// obstacle. There is only this one ranged attack (no variants), and it is
+/// telegraphed by the boss before firing.
 class BossProjectile extends PositionComponent {
   BossProjectile({
     required super.position,
     required Vector2 direction,
-    this.worldWidth = worldWidth,
-    this.worldHeight = worldHeight,
+    this.worldWidth = world.worldWidth,
+    this.worldHeight = world.worldHeight,
   })  : _dir = direction.clone(),
         super(anchor: Anchor.center);
 
@@ -43,13 +43,13 @@ class BossProjectile extends PositionComponent {
   void update(double dt) {
     super.update(dt);
     if (_spent) return;
-    position.add(_dir * bossRangedSpeed * dt);
+    position.add(_dir * world.bossRangedSpeed * dt);
 
     // Leave the battlefield.
-    if (position.x < wallThickness ||
-        position.x > worldWidth - wallThickness ||
-        position.y < wallThickness ||
-        position.y > worldHeight - groundHeight) {
+    if (position.x < world.wallThickness ||
+        position.x > worldWidth - world.wallThickness ||
+        position.y < world.wallThickness ||
+        position.y > worldHeight - world.groundHeight) {
       _spent = true;
       removeFromParent();
     }

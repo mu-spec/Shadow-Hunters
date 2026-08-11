@@ -4,7 +4,6 @@ import 'package:flame/components.dart';
 
 import '../world/constants.dart';
 import 'enemy.dart';
-import 'hunter.dart';
 
 /// Callback used by the boss to ask the game to spawn a ranged projectile.
 /// [from] is the launch origin (world), [dir] is a normalized direction.
