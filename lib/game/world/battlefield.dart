@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 
+import 'constants.dart';
 import 'forest_background.dart';
 import 'ground.dart';
 import 'world_bounds.dart';

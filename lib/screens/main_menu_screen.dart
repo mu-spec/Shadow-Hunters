@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../widgets/menu_button.dart';
-import 'game_screen.dart';
 import 'settings_screen.dart';
 import 'level_select_screen.dart';
 

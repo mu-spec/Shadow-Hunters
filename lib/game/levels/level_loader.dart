@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:flame/components.dart' show Vector2;
 
 import 'level_data.dart';
 

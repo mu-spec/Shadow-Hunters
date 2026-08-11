@@ -11,13 +11,14 @@ enum SkeletonHitZone { head, body }
 
 class Skeleton extends PositionComponent {
   Skeleton({
-    required super.position,
+    required Vector2 position,
     required this.hunter,
     this.patrolEnabled = false,
     this.battlefieldWidth = worldWidth,
   })
       : _patrolOriginX = position.x,
         super(
+          position: position,
           size: Vector2(44, 72),
           anchor: Anchor.bottomCenter,
         );
