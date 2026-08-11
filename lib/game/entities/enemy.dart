@@ -90,6 +90,15 @@ abstract class Enemy extends PositionComponent {
   final double hurtDuration;
   final double deathDuration;
 
+  // --- Dodge config (only enabled by e.g. Goblin) ---
+  final bool dodgeEnabled;
+  final double dodgeCooldown;
+  final double dodgeDistance;
+  final double dodgeSpeed;
+  final double dodgeTelegraphDuration;
+  final double dodgeIntervalMin;
+  final double dodgeIntervalMax;
+
   final double _patrolOriginX;
   double _patrolDirection = 1;
   late int health;
