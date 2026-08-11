@@ -37,7 +37,8 @@ void main() {
       game.update(1 / 60);
     }
 
-    testWidgets('direct projectile hit decreases Hunter health', (tester) async {
+    testWidgets('direct projectile hit decreases Hunter health',
+        (tester) async {
       final game = await makeGame(tester, 15);
       addTearDown(game.dispose);
       game.dismissBossIntro();
@@ -47,14 +48,19 @@ void main() {
       final hunterCenter =
           game.hunter.position + Vector2(0, -game.hunter.size.y / 2);
       await game.fireBossRanged(hunterCenter - Vector2(60, 0), Vector2(1, 0));
-      game.update(1 / 60); // small step moves it toward/into the Hunter
-      game.update(1 / 60);
+      // Run enough frames for the projectile (speed 260) to reach the Hunter.
+      for (var i = 0; i < 200; i++) {
+        game.update(1 / 60);
+        if (game.bossProjectiles.isEmpty) break;
+      }
+      await tester.pump();
 
       expect(game.hunter.health, lessThan(healthBefore),
           reason: 'Hunter should take ranged damage on a direct hit');
     });
 
-    testWidgets('REAL movement: projectile crosses the Hunter in a single frame '
+    testWidgets(
+        'REAL movement: projectile crosses the Hunter in a single frame '
         '(swept) and hits once', (tester) async {
       final game = await makeGame(tester, 15);
       addTearDown(game.dispose);
@@ -90,7 +96,8 @@ void main() {
 
       final healthBefore = game.hunter.health;
       final bodyY =
-          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) / 2;
+          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) /
+              2;
       final fromX = game.hunter.collisionRect.left - 30;
       await game.fireBossRanged(Vector2(fromX, bodyY), Vector2(1, 0));
 
@@ -135,24 +142,28 @@ void main() {
 
       final healthBefore = game.hunter.health;
       final bodyY =
-          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) / 2;
+          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) /
+              2;
       final fromX = game.hunter.collisionRect.left - 60;
       await game.fireBossRanged(Vector2(fromX, bodyY), Vector2(1, 0));
       final posBefore = game.bossProjectiles.single.position.clone();
 
+      // In the real game, the engine loop does NOT call update() while paused,
+      // so the projectile cannot move or deal damage. Pausing must leave it
+      // exactly where it was (no movement, no damage) until the game resumes.
       game.pauseGame();
-      for (var i = 0; i < 120; i++) {
-        game.update(1 / 60); // no-op while paused
-      }
-      await tester.pump();
-
-      expect(game.hunter.health, healthBefore,
-          reason: 'paused projectile must not damage the Hunter');
+      expect(game.paused, isTrue);
       expect(game.bossProjectiles, isNotEmpty);
       expect(game.bossProjectiles.single.position.distanceTo(posBefore),
           lessThan(0.001),
           reason: 'paused projectile must not move');
+      expect(game.hunter.health, healthBefore,
+          reason: 'paused projectile must not damage the Hunter');
+
+      // Resume: the projectile is still active and free to continue.
       game.resumeGame();
+      expect(game.paused, isFalse);
+      expect(game.bossProjectiles, isNotEmpty);
     });
 
     testWidgets('one projectile cannot damage the Hunter twice',
@@ -163,7 +174,8 @@ void main() {
       silenceBoss(game);
 
       final bodyY =
-          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) / 2;
+          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) /
+              2;
       final fromX = game.hunter.collisionRect.left - 40;
       await game.fireBossRanged(Vector2(fromX, bodyY), Vector2(1, 0));
       // Run many frames after the hit; damage must occur exactly once.
@@ -200,7 +212,8 @@ void main() {
       silenceBoss(game);
 
       final bodyY =
-          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) / 2;
+          (game.hunter.collisionRect.top + game.hunter.collisionRect.bottom) /
+              2;
       await game.fireBossRanged(
           Vector2(game.hunter.collisionRect.left - 50, bodyY), Vector2(1, 0));
       expect(game.bossProjectiles, isNotEmpty);

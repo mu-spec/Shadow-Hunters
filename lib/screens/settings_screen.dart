@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/settings_scope.dart';
+import '../services/save_service.dart';
 import '../services/settings_service.dart';
 
 /// Settings screen: music, sound effects, vibration and aim sensitivity.
@@ -10,6 +11,50 @@ import '../services/settings_service.dart';
 /// setting changes, and all values persist locally.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  /// Shows a confirmation dialog and, if confirmed, resets ALL progress
+  /// (unlocked/completed levels and V1 completion) and returns the player's
+  /// settings to their defaults.
+  Future<void> _confirmResetProgress(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF141B22),
+        title: const Text('Reset Progress?',
+            style: TextStyle(color: Color(0xFFE8F0F5))),
+        content: const Text(
+          'This will erase your unlocked levels, completed levels, and '
+          'V1 completion, and restore default settings. This cannot be undone.',
+          style: TextStyle(color: Color(0xFFB8C6D2)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('CANCEL',
+                style: TextStyle(color: Color(0xFF6B7A87))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child:
+                const Text('RESET', style: TextStyle(color: Color(0xFFFF6B6B))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final settings = SettingsScope.of(context);
+    final save = SaveService();
+    // Reset both progress and settings in parallel (best effort).
+    await save.reset();
+    await settings.reset();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Progress reset')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +107,16 @@ class SettingsScreen extends StatelessWidget {
               label: '${settings.aimSensitivity.toStringAsFixed(1)}x',
               onChanged: settings.setAimSensitivity,
             ),
+          ),
+          const _SectionHeader('Data'),
+          ListTile(
+            leading: const Icon(Icons.restart_alt, color: Color(0xFFFF6B6B)),
+            title: const Text('Reset Progress', style: _tileText),
+            subtitle: const Text(
+              'Erase all saved progress and restore defaults',
+              style: TextStyle(color: Color(0xFF6B7A87), fontSize: 13),
+            ),
+            onTap: () => _confirmResetProgress(context),
           ),
         ],
       ),
