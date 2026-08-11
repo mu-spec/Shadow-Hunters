@@ -650,7 +650,14 @@ class ShadowHuntersGame extends FlameGame {
         continue;
       }
     }
-    bossProjectiles.removeWhere((p) => !p.isMounted);
+    // Remove only projectiles that are genuinely finished: consumed by a hit,
+    // an obstacle, or expired/left the world. A freshly-added projectile may be
+    // temporarily not-mounted while Flame finishes adding it to the world; the
+    // ForestGuardian's onRangedFire callback does not await fireBossRanged, so
+    // using `!isMounted` here would drop a brand-new projectile from tracking
+    // before it mounts — the projectile would then render and move but never be
+    // checked against the Hunter. `spent` is the authoritative done signal.
+    bossProjectiles.removeWhere((p) => p.spent);
 
     // Only prune enemies that have actually finished dying and left the world.
     // A live enemy must never be dropped from tracking: if it is removed (e.g.

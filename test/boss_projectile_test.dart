@@ -223,5 +223,56 @@ void main() {
       expect(game.bossProjectiles, isEmpty,
           reason: 'restart must remove old boss projectiles');
     });
+
+    testWidgets(
+        'REAL boss callback: projectile fired through onRangedFire stays '
+        'tracked, reaches the Hunter, hits once, and is removed',
+        (tester) async {
+      final game = await makeGame(tester, 15);
+      addTearDown(game.dispose);
+      game.dismissBossIntro();
+
+      // Do NOT call fireBossRanged manually. Keep the Hunter far from the boss
+      // (default spawn x=220, boss x=1900) so the ForestGuardian's normal ranged
+      // attack triggers through its onRangedFire callback during game.update().
+      // The callback invokes fireBossRanged WITHOUT awaiting it, reproducing the
+      // pending-mount window where a `!isMounted` cleanup would drop the
+      // newly-created projectile from tracking.
+      final healthBefore = game.hunter.health;
+
+      // Run updates until the boss has fired at least one projectile (telegraph
+      // ~0.7s + cooldown).
+      var projectileSeen = false;
+      for (var i = 0; i < 2000 && !projectileSeen; i++) {
+        game.update(1 / 60);
+        if (game.bossProjectiles.isNotEmpty) projectileSeen = true;
+      }
+      expect(projectileSeen, isTrue,
+          reason: 'boss should fire a ranged projectile via onRangedFire');
+
+      // THE CORE ASSERTION: the freshly-fired projectile must remain tracked
+      // (NOT dropped during its pending-mount window). The old `!isMounted`
+      // cleanup would have removed it here, and then it would render/move but
+      // never be checked against the Hunter.
+      expect(game.bossProjectiles, isNotEmpty,
+          reason: 'newly-fired projectile must stay tracked while it mounts');
+
+      // Kill the boss now so it can't fire further projectiles; only the single
+      // in-flight projectile remains, so the Hunter takes exactly one hit.
+      game.boss?.takeDamage(bossMaxHealth);
+      game.update(1 / 60);
+
+      // Let the single in-flight projectile reach the Hunter.
+      for (var i = 0; i < 2000; i++) {
+        game.update(1 / 60);
+        if (game.bossProjectiles.isEmpty) break;
+      }
+      await tester.pump();
+
+      expect(game.hunter.health, healthBefore - bossRangedDamage.toInt(),
+          reason: 'projectile fired via the real callback must damage once');
+      expect(game.bossProjectiles, isEmpty,
+          reason: 'projectile must be removed after the hit');
+    });
   });
 }
