@@ -169,24 +169,26 @@ void main() {
 
     testWidgets('Level 15 victory shows the V1 completion screen',
         (tester) async {
-      // Pump the real GameScreen so the completion overlay renders.
+      // Pump the real GameScreen so the completion overlay can render.
       final settings = SettingsService();
       await settings.load();
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          SettingsScope(
-            service: settings,
-            child: const MaterialApp(home: GameScreen(levelNumber: 15)),
-          ),
-        );
-        await tester.pump();
-      });
+      mockLevelAssets(tester);
+      await tester.pumpWidget(
+        SettingsScope(
+          service: settings,
+          child: const MaterialApp(home: GameScreen(levelNumber: 15)),
+        ),
+      );
       await tester.pump();
 
-      // Grab the actual game from the GameWidget and dismiss the intro.
-      final gameWidget = tester.widget<GameWidget>(find.byType(GameWidget));
-      final game = gameWidget.game as ShadowHuntersGame;
+      // Grab the game created by GameScreen (mounted in its GameWidget).
+      final game =
+          tester.widget<GameWidget>(find.byType(GameWidget)).game as ShadowHuntersGame;
       addTearDown(game.dispose);
+
+      // Let the real (mocked) asset load finish, then dismiss the intro.
+      await tester.runAsync(() => game.toBeLoaded());
+      await tester.pump();
       game.dismissBossIntro();
       await tester.pump();
 
