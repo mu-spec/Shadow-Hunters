@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:shadow_hunters/game/aim/aim_state.dart';
+import 'package:shadow_hunters/game/entities/enemy.dart';
 import 'package:shadow_hunters/game/entities/goblin.dart';
 import 'package:shadow_hunters/game/entities/hunter.dart';
 import 'package:shadow_hunters/game/entities/skeleton.dart';
@@ -22,69 +23,80 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  // A solid obstacle standing on the ground between the enemy and the hunter.
+  // A solid obstacle standing on the ground between an enemy and the Hunter.
   final obstacle = Rect.fromLTWH(600, groundY - 120, 40, 120);
 
-  Hunter makeHunter() =>
-      Hunter(position: Vector2(1200, groundY), aim: AimState());
+  Hunter makeHunterAt(double x) =>
+      Hunter(position: Vector2(x, groundY), aim: AimState());
 
-  Skeleton makeSkeleton(Hunter h) =>
-      Skeleton(position: Vector2(200, groundY), hunter: h, obstacles: [obstacle]);
+  /// Runs [enemy] chasing for [frames] frames, asserting the enemy never
+  /// intersects [obstacle], and returns the final feet x.
+  double runAndTrackX(Enemy enemy, int frames) {
+    var lastX = enemy.position.x;
+    for (var i = 0; i < frames; i++) {
+      enemy.update(1 / 60);
+      final body = Rect.fromLTWH(
+        enemy.position.x - enemy.size.x / 2,
+        enemy.position.y - enemy.size.y,
+        enemy.size.x,
+        enemy.size.y,
+      );
+      expect(body.overlaps(obstacle), isFalse,
+          reason: 'enemy must never intersect the obstacle while avoiding');
+      lastX = enemy.position.x;
+    }
+    return lastX;
+  }
 
-  Zombie makeZombie(Hunter h) =>
-      Zombie(position: Vector2(200, groundY), hunter: h, obstacles: [obstacle]);
-
-  Goblin makeGoblin(Hunter h) =>
-      Goblin(position: Vector2(200, groundY), hunter: h, obstacles: [obstacle]);
-
-  group('Enemies cannot cross solid obstacles', () {
-    test('Skeleton cannot cross an obstacle', () {
-      final hunter = makeHunter();
-      final skeleton = makeSkeleton(hunter);
-      // Skeleton is left of the obstacle, hunter is right. Chase right for a
-      // long time; it must stop at the obstacle's left edge.
-      skeleton.update(1);
-      for (var i = 0; i < 3000; i++) {
-        skeleton.update(1 / 60);
-      }
-      // Right edge of skeleton must not pass obstacle's left edge.
-      expect(skeleton.position.x + skeleton.size.x / 2,
-          lessThanOrEqualTo(obstacle.left + 1));
+  group('Enemies get around obstacles (deterministic avoidance)', () {
+    test('Skeleton encounters an obstacle and eventually gets around it', () {
+      final hunter = makeHunterAt(1000); // Hunter is right of the obstacle
+      final skeleton =
+          Skeleton(position: Vector2(200, groundY), hunter: hunter, obstacles: [obstacle]);
+      final finalX = runAndTrackX(skeleton, 4000);
+      expect(finalX, greaterThan(obstacle.right),
+          reason: 'Skeleton should end up on the Hunter side of the obstacle');
     });
 
-    test('Zombie cannot cross an obstacle', () {
-      final hunter = makeHunter();
-      final zombie = makeZombie(hunter);
-      for (var i = 0; i < 3000; i++) {
-        zombie.update(1 / 60);
-      }
-      expect(zombie.position.x + zombie.size.x / 2,
-          lessThanOrEqualTo(obstacle.left + 1));
+    test('Zombie encounters an obstacle and eventually gets around it', () {
+      final hunter = makeHunterAt(1000);
+      final zombie =
+          Zombie(position: Vector2(200, groundY), hunter: hunter, obstacles: [obstacle]);
+      final finalX = runAndTrackX(zombie, 4000);
+      expect(finalX, greaterThan(obstacle.right),
+          reason: 'Zombie should end up on the Hunter side of the obstacle');
     });
 
-    test('Goblin cannot cross an obstacle', () {
-      final hunter = makeHunter();
-      final goblin = makeGoblin(hunter);
-      for (var i = 0; i < 3000; i++) {
-        goblin.update(1 / 60);
-      }
-      expect(goblin.position.x + goblin.size.x / 2,
-          lessThanOrEqualTo(obstacle.left + 1));
+    test('Goblin encounters an obstacle and eventually gets around it', () {
+      final hunter = makeHunterAt(1000);
+      final goblin =
+          Goblin(position: Vector2(200, groundY), hunter: hunter, obstacles: [obstacle]);
+      final finalX = runAndTrackX(goblin, 4000);
+      expect(finalX, greaterThan(obstacle.right),
+          reason: 'Goblin should end up on the Hunter side of the obstacle');
     });
 
+    test('Enemy does not remain permanently stuck (keeps moving)', () {
+      final hunter = makeHunterAt(1000);
+      final skeleton =
+          Skeleton(position: Vector2(200, groundY), hunter: hunter, obstacles: [obstacle]);
+      // After running enough frames it must have advanced well past the
+      // obstacle, i.e. not be parked at its left edge forever.
+      final finalX = runAndTrackX(skeleton, 4000);
+      expect(finalX, greaterThan(obstacle.right + 20));
+    });
+  });
+
+  group('Goblin dodge stays obstacle-safe', () {
     test('Goblin dodge cannot pass through an obstacle', () {
       // Put the hunter to the LEFT of the goblin so the goblin's dodge (which
       // moves away from the Hunter) pushes it to the RIGHT — into the obstacle.
       final hunter = Hunter(position: Vector2(200, groundY), aim: AimState());
-      final goblin = makeGoblin(hunter);
-      // Just left of the obstacle, so a rightward dodge would try to enter it.
-      goblin.position.x = obstacle.left - 20;
+      final goblin =
+          Goblin(position: Vector2(obstacle.left - 20, groundY), hunter: hunter, obstacles: [obstacle]);
 
-      // Run many frames including possible dodges; it must never enter the
-      // obstacle's interior.
       for (var i = 0; i < 6000; i++) {
         goblin.update(1 / 60);
-        // Verify the goblin body never overlaps the obstacle.
         final body = Rect.fromLTWH(
           goblin.position.x - goblin.size.x / 2,
           goblin.position.y - goblin.size.y,
@@ -125,14 +137,13 @@ void main() {
           game.update(1 / 60);
         }
 
-        // Every remaining enemy is alive, within bounds, and has a valid
-        // (non-NaN) position — i.e. none is permanently stuck in a broken state.
+        // Every remaining enemy is alive, within bounds, and never overlaps an
+        // obstacle — i.e. none is permanently stuck in a broken state.
         for (final e in game.enemies) {
           if (e.isDead) continue;
           expect(e.position.x.isFinite, isTrue);
           expect(e.position.x, greaterThanOrEqualTo(wallThickness));
           expect(e.position.x, lessThanOrEqualTo(worldWidth - wallThickness));
-          // Never overlapping an obstacle.
           final body = Rect.fromLTWH(
             e.position.x - e.size.x / 2,
             e.position.y - e.size.y,

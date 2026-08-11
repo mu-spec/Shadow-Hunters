@@ -120,6 +120,19 @@ abstract class Enemy extends PositionComponent {
   double _dodgeMoveTimer = 0;
   int _dodgeDirection = 1;
 
+  // --- Simple obstacle avoidance state ---
+  // When a chase move is blocked by an obstacle, the enemy deterministically
+  // climbs up over the obstacle's top edge (the nearest accessible edge), moves
+  // across to the Hunter's side, then descends back to the ground. No
+  // pathfinding — just 3 simple phases.
+  bool _avoiding = false;
+  Rect? _avoidRect; // the obstacle currently being climbed over
+  int _avoidPhase = 0; // 0 = ascend, 1 = cross, 2 = descend
+
+  static const double _avoidClimbSpeed = 90;
+  static const double _avoidCrossSpeed = 120;
+  static const double _avoidDescendSpeed = 110;
+
   bool get isDead => state == EnemyState.dead;
   bool get isHurt => state == EnemyState.hurt;
   bool get canAttack => !isDead && _attackTimer <= 0 && !hunter.isDead;
@@ -169,6 +182,21 @@ abstract class Enemy extends PositionComponent {
     }
   }
 
+  /// Returns the first obstacle whose [rect] the enemy's body (at the given
+  /// feet x, current y) would overlap, or null if none.
+  Rect? _blockedBy(double feetX) {
+    for (final o in obstacles) {
+      final body = Rect.fromLTWH(
+        feetX - size.x / 2,
+        position.y - size.y,
+        size.x,
+        size.y,
+      );
+      if (body.overlaps(o)) return o;
+    }
+    return null;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -194,8 +222,29 @@ abstract class Enemy extends PositionComponent {
       return;
     }
 
+    // If the enemy is currently climbing over an obstacle, continue that simple
+    // avoidance until it clears and can resume chasing.
+    if (_avoiding) {
+      _updateAvoidance(dt);
+      return;
+    }
+
     final dx = hunter.position.x - position.x;
     if (dx.abs() > attackRange) {
+      // Before moving, check whether the proposed horizontal step would enter a
+      // solid obstacle between us and the Hunter. If so, start a simple
+      // deterministic climb-over instead of stopping permanently.
+      final step = dx.sign * moveSpeed * dt;
+      final proposedX = (position.x + step).clamp(
+        wallThickness + size.x / 2,
+        battlefieldWidth - wallThickness - size.x / 2,
+      ).toDouble();
+      final blocker = _blockedBy(proposedX);
+      if (blocker != null && _isBetweenEnemyAndHunter(blocker)) {
+        _startAvoidance(blocker);
+        return;
+      }
+
       // Level 4 patrols in a small predictable band until Hunter approaches.
       final patrolling = patrolEnabled && dx.abs() > 180;
       final oldX = position.x;
@@ -219,7 +268,7 @@ abstract class Enemy extends PositionComponent {
       position.x = position.x
           .clamp(wallThickness + size.x / 2, battlefieldWidth - wallThickness - size.x / 2)
           .toDouble();
-      // Do not walk through a solid obstacle.
+      // Do not walk through a solid obstacle (safety net).
       _blockMove(oldX);
       state = EnemyState.walking;
 
@@ -232,6 +281,75 @@ abstract class Enemy extends PositionComponent {
       state = EnemyState.attacking;
       if (canAttack) _attack();
     }
+  }
+
+  /// True if [rect] lies between the enemy and the Hunter (so the enemy must
+  /// go around it to reach the Hunter).
+  bool _isBetweenEnemyAndHunter(Rect rect) {
+    final e = position.x;
+    final h = hunter.position.x;
+    if (e < h) return rect.right > e && rect.left < h;
+    if (e > h) return rect.left < e && rect.right > h;
+    return false;
+  }
+
+  /// Begins climbing over [rect]: phase 0 (ascend) raises the body above the
+  /// obstacle's top, then phase 1 (cross) moves to the Hunter's side, then
+  /// phase 2 (descend) returns to the ground.
+  void _startAvoidance(Rect rect) {
+    _avoiding = true;
+    _avoidRect = rect;
+    _avoidPhase = 0;
+    state = EnemyState.walking;
+  }
+
+  /// Advances the simple deterministic climb-over avoidance.
+  void _updateAvoidance(double dt) {
+    final rect = _avoidRect;
+    if (rect == null) {
+      _avoiding = false;
+      _avoidPhase = 0;
+      return;
+    }
+
+    // Clamp to battlefield on both axes at all times.
+    final minX = wallThickness + size.x / 2;
+    final maxX = battlefieldWidth - wallThickness - size.x / 2;
+    final maxY = groundY; // feet cannot go below the ground
+
+    switch (_avoidPhase) {
+      case 0: // Ascend until the feet reach the obstacle top (so the whole body
+        // is above it and never intersects the obstacle).
+        final targetY = rect.top;
+        if (position.y > targetY) {
+          position.y -= _avoidClimbSpeed * dt;
+          if (position.y < targetY) position.y = targetY;
+        } else {
+          _avoidPhase = 1;
+        }
+        break;
+      case 1: // Cross horizontally to the Hunter's side until clear.
+        final dir = hunter.position.x >= position.x ? 1 : -1;
+        position.x += dir * _avoidCrossSpeed * dt;
+        final cleared = dir > 0
+            ? position.x - size.x / 2 > rect.right
+            : position.x + size.x / 2 < rect.left;
+        if (cleared) _avoidPhase = 2;
+        break;
+      case 2: // Descend back to the ground.
+        position.y += _avoidDescendSpeed * dt;
+        if (position.y >= maxY) {
+          position.y = maxY;
+          _avoiding = false;
+          _avoidPhase = 0;
+          _avoidRect = null;
+        }
+        break;
+    }
+
+    // Clamp position within the battlefield.
+    position.x = position.x.clamp(minX, maxX).toDouble();
+    position.y = position.y.clamp(size.y, maxY).toDouble();
   }
 
   /// Begins a telegraphed short dodge hop, moving away from the Hunter (a
