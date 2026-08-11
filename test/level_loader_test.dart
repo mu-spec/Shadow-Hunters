@@ -17,6 +17,26 @@ void main() {
     expect(level!.enemyCount, 1);
   });
 
+  test('zombie enemy type loads as valid level data', () {
+    final level = LevelLoader.fromJson({
+      'id': 'level_zombie',
+      'name': 'Undead Throng',
+      'playerSpawn': {'x': 220, 'y': 600},
+      'enemyType': 'zombie',
+      'enemySpawn': {'x': 1800, 'y': 600},
+      'enemySpawns': [
+        {'x': 1600, 'y': 600},
+        {'x': 1900, 'y': 600},
+      ],
+      'enemyCount': 2,
+      'battlefield': {'theme': 'enchanted_forest'},
+    });
+    expect(level, isNotNull);
+    expect(level!.enemyType, 'zombie');
+    expect(level.enemyCount, 2);
+    expect(level.enemySpawns.length, 2);
+  });
+
   test('malformed level data fails safely', () {
     expect(LevelLoader.fromJson({'id': 'bad'}), isNull);
     expect(LevelLoader.fromJson(<String, dynamic>{

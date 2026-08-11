@@ -1,0 +1,1 @@
+{"id":"level_7","name":"The Hunted Pair","playerSpawn":{"x":220,"y":600},"enemyType":"skeleton","enemySpawn":{"x":1100,"y":600},"enemySpawns":[{"x":1100,"y":600},{"x":1700,"y":600}],"enemySpawnTypes":["skeleton","zombie"],"enemyCount":2,"battlefield":{"theme":"enchanted_forest","width":2560,"height":720}}

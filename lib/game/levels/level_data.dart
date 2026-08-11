@@ -12,6 +12,7 @@ class LevelData {
     required this.enemyCount,
     required this.battlefield,
     this.objective,
+    this.enemySpawnTypes,
   });
 
   final String id;
@@ -23,4 +24,19 @@ class LevelData {
   final int enemyCount;
   final Map<String, dynamic> battlefield;
   final String? objective;
+
+  /// Optional per-spawn enemy type, parallel to [enemySpawns]. Lets a single
+  /// level mix enemy types (e.g. Level 7 = Skeleton + Zombie). When null (or
+  /// shorter than [enemySpawns]), [enemyType] is used for every spawn.
+  final List<String>? enemySpawnTypes;
+
+  /// Returns the enemy type for the spawn at [index]: the per-spawn type if
+  /// one is declared for that index, otherwise the level's [enemyType].
+  String enemyTypeFor(int index) {
+    final types = enemySpawnTypes;
+    if (types != null && index >= 0 && index < types.length) {
+      return types[index];
+    }
+    return enemyType;
+  }
 }

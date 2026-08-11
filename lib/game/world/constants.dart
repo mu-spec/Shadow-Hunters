@@ -51,6 +51,20 @@ const double combatFeedbackDuration = 0.55;
 const double skeletonHurtDuration = 0.16;
 const double skeletonDeathDuration = 0.35;
 
+// --- Zombie (Milestone 4A) ---
+// A slow, tanky, hard-hitting melee enemy. It is a larger target than the
+// Skeleton, deals stronger melee damage, attacks more slowly, and takes many
+// more arrows to bring down — so it feels clearly distinct from the Skeleton.
+const double zombieSpeed = 34; // slow
+const double zombieAttackRange = 50;
+const double zombieAttackCooldown = 1.9; // slow attack speed
+const double zombieAttackDamage = 24; // strong melee attack
+const int zombieBodyDamage = 12;
+const int zombieHeadDamage = 30; // headshots supported
+const int zombieMaxHealth = 160; // high health
+const double zombieHurtDuration = 0.18;
+const double zombieDeathDuration = 0.45;
+
 /// Colors shared by the prototype battlefield.
 const Color skyTop = Color(0xFF4A6E8C);
 const Color skyBottom = Color(0xFF7FA3B8);

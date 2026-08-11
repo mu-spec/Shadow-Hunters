@@ -12,8 +12,10 @@ import 'controls/movement_joystick.dart';
 import 'controls/pause_button.dart';
 import 'entities/arrow.dart';
 import 'entities/combat_feedback.dart';
+import 'entities/enemy.dart';
 import 'entities/hunter.dart';
 import 'entities/skeleton.dart';
+import 'entities/zombie.dart';
 import 'levels/level_data.dart';
 import 'levels/level_loader.dart';
 import 'ui/debug_hud.dart';
@@ -72,16 +74,24 @@ class ShadowHuntersGame extends FlameGame {
 
   /// All live arrows currently in the world (flying or stuck).
   final List<Arrow> arrows = [];
-  final List<Skeleton> skeletons = [];
+
+  /// Every enemy in the current level (Skeletons and/or Zombies). The game
+  /// treats them uniformly through the shared [Enemy] interface.
+  final List<Enemy> enemies = [];
   final Set<Arrow> _spentArrows = {};
 
   /// Authoritative total number of enemies the level spawned. Driven by the
-  /// live [skeletons] list so the HUD and Victory always agree with what is
+  /// live [enemies] list so the HUD and Victory always agree with what is
   /// actually in the world.
-  int get totalEnemies => skeletons.length;
+  int get totalEnemies => enemies.length;
 
   /// Number of enemies that are still alive (not dead).
-  int get liveEnemies => skeletons.where((s) => !s.isDead).length;
+  int get liveEnemies => enemies.where((e) => !e.isDead).length;
+
+  /// Convenience view of just the Skeleton enemies (used by Skeleton-specific
+  /// tests); the full mixed roster lives in [enemies].
+  List<Skeleton> get skeletons =>
+      enemies.whereType<Skeleton>().toList(growable: false);
 
   /// Human-readable description of the most recent fired shot.
   String lastShot = 'none';
@@ -148,16 +158,14 @@ class ShadowHuntersGame extends FlameGame {
     hunter = Hunter(position: levelData.playerSpawn.clone(), aim: aim, battlefieldWidth: _levelWorldWidth, battlefieldHeight: _levelWorldHeight);
     await world.add(hunter);
 
-    // Build the current level's declared enemy data.
+    // Build the current level's declared enemy data (Skeleton, Zombie, ...).
     for (var i = 0; i < levelData.enemyCount; i++) {
-      final skeleton = Skeleton(
+      final enemy = _createEnemy(
+        index: i,
         position: levelData.enemySpawns[i % levelData.enemySpawns.length].clone(),
-        hunter: hunter,
-        patrolEnabled: levelData.battlefield['movingSkeleton'] == true,
-        battlefieldWidth: _levelWorldWidth,
       );
-      skeletons.add(skeleton);
-      await world.add(skeleton);
+      enemies.add(enemy);
+      await world.add(enemy);
     }
 
     // Pull-back aim control: an invisible touch area sized to fully surround
@@ -199,6 +207,34 @@ class ShadowHuntersGame extends FlameGame {
     camera.viewfinder.position = Vector2.zero();
 
     _logDiagnostics('onLoad');
+  }
+
+  /// Constructs the enemy for spawn [index] in the current level.
+  ///
+  /// The type comes from [LevelData.enemyTypeFor], which honors per-spawn
+  /// `enemySpawnTypes` (enabling mixed levels such as Level 7) and otherwise
+  /// falls back to the level's [LevelData.enemyType]. Supports `skeleton`
+  /// (Milestone 2A) and `zombie` (Milestone 4A). All enemies share the [Enemy]
+  /// base, so spawn/recycle/hit/Victory logic is identical regardless of type.
+  Enemy _createEnemy({required int index, required Vector2 position}) {
+    final patrolEnabled = levelData.battlefield['movingSkeleton'] == true;
+    switch (levelData.enemyTypeFor(index)) {
+      case 'zombie':
+        return Zombie(
+          position: position,
+          hunter: hunter,
+          patrolEnabled: patrolEnabled,
+          battlefieldWidth: _levelWorldWidth,
+        );
+      case 'skeleton':
+      default:
+        return Skeleton(
+          position: position,
+          hunter: hunter,
+          patrolEnabled: patrolEnabled,
+          battlefieldWidth: _levelWorldWidth,
+        );
+    }
   }
 
   /// Scales the world so it fills the full screen height (no letterbox bars).
@@ -281,19 +317,17 @@ class ShadowHuntersGame extends FlameGame {
     }
     arrows.clear();
     _spentArrows.clear();
-    for (final skeleton in skeletons) {
-      skeleton.removeFromParent();
+    for (final enemy in enemies) {
+      enemy.removeFromParent();
     }
-    skeletons.clear();
+    enemies.clear();
     for (var i = 0; i < levelData.enemyCount; i++) {
-      final skeleton = Skeleton(
+      final enemy = _createEnemy(
+        index: i,
         position: levelData.enemySpawns[i % levelData.enemySpawns.length].clone(),
-        hunter: hunter,
-        patrolEnabled: levelData.battlefield['movingSkeleton'] == true,
-        battlefieldWidth: _levelWorldWidth,
       );
-      skeletons.add(skeleton);
-      await world.add(skeleton);
+      enemies.add(enemy);
+      await world.add(enemy);
     }
 
     statusNotifier.value = GameStatus.playing;
@@ -338,10 +372,10 @@ class ShadowHuntersGame extends FlameGame {
 
     if (hunter.isDead) {
       statusNotifier.value = GameStatus.defeat;
-    } else if (skeletons.isNotEmpty && liveEnemies == 0) {
+    } else if (enemies.isNotEmpty && liveEnemies == 0) {
       // Victory requires EVERY spawned enemy to be dead. Using the alive count
       // (rather than assuming a single enemy) keeps multi-enemy levels such as
-      // Level 5 from triggering Victory after only one Skeleton dies.
+      // Level 5 from triggering Victory after only one enemy dies.
       statusNotifier.value = GameStatus.victory;
       if (!_completionReported) {
         _completionReported = true;
@@ -351,19 +385,19 @@ class ShadowHuntersGame extends FlameGame {
 
     // Drop arrows that have cleaned themselves up (stuck-then-expired or hit
     // their max lifetime), so the tracked list stays in sync with the world.
-    // Resolve each Arrow against the Skeleton head/body hit zones.
+    // Resolve each Arrow against every enemy's head/body hit zones.
     for (final arrow in List<Arrow>.from(arrows)) {
       if (!arrow.flying || _spentArrows.contains(arrow)) continue;
-      for (final skeleton in List<Skeleton>.from(skeletons)) {
-        if (skeleton.isDead) continue;
-        final zone = skeleton.hitZoneAlongPath(
+      for (final enemy in List<Enemy>.from(enemies)) {
+        if (enemy.isDead) continue;
+        final zone = enemy.hitZoneAlongPath(
           previousArrowPositions[arrow] ?? arrow.position,
           arrow.position,
         );
         if (zone != null) {
-          final headshot = zone == SkeletonHitZone.head;
-          final damage = skeleton.damageFor(zone);
-          skeleton.takeDamage(damage);
+          final headshot = zone == EnemyHitZone.head;
+          final damage = enemy.damageFor(zone);
+          enemy.takeDamage(damage);
           world.add(
             CombatFeedback(
               position: arrow.position.clone(),
@@ -392,8 +426,8 @@ class ShadowHuntersGame extends FlameGame {
     // A live enemy must never be dropped from tracking: if it is removed (e.g.
     // while its mount is still pending right after a Restart), the HUD enemy
     // count and Victory would both lose sight of it, letting a multi-enemy
-    // level like Level 5 report one Skeleton and trigger Victory early.
-    skeletons.removeWhere((s) => !s.isMounted && s.isDead);
+    // level like Level 5 report one enemy and trigger Victory early.
+    enemies.removeWhere((e) => !e.isMounted && e.isDead);
 
     // Block movement while paused (Flame already freezes arrow updates).
     hunter.moveDirection = paused ? 0 : joystick.horizontalDirection;

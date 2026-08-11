@@ -42,4 +42,20 @@ void main() {
     expect(save.unlockedLevel, 3);
     expect(save.completedLevels, containsAll([1, 2]));
   });
+
+  test('levels 6-8 unlock sequentially and persist', () async {
+    final save = SaveService();
+    await save.load();
+    await save.completeLevel(5);
+    expect(save.unlockedLevel, 6);
+    await save.completeLevel(6);
+    expect(save.unlockedLevel, 7);
+    await save.completeLevel(7);
+    expect(save.unlockedLevel, 8);
+
+    final restored = SaveService();
+    await restored.load();
+    expect(restored.unlockedLevel, 8);
+    expect(restored.completedLevels, containsAll([5, 6, 7]));
+  });
 }
