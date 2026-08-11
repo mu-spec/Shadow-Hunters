@@ -39,11 +39,12 @@ void main() {
 
   test('malformed level data fails safely', () {
     expect(LevelLoader.fromJson({'id': 'bad'}), isNull);
+    // 'orc' is not a supported enemy type, so the whole level is invalid.
     expect(LevelLoader.fromJson(<String, dynamic>{
       'id': 'bad',
       'name': 'Bad',
       'playerSpawn': {'x': 0, 'y': 0},
-      'enemyType': 'goblin',
+      'enemyType': 'orc',
       'enemySpawn': {'x': 1, 'y': 1},
       'enemyCount': 1,
       'battlefield': {},
