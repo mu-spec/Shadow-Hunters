@@ -2,7 +2,7 @@ import 'dart:ui' show Rect;
 
 import 'package:flame/components.dart' show Vector2;
 import 'package:flame/game.dart' show GameWidget;
-import 'package:flutter/material.dart' show MaterialApp;
+import 'package:flutter/material.dart' show MaterialApp, Scaffold;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

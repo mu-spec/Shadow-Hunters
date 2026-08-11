@@ -143,7 +143,7 @@ class _BossIntro extends StatelessWidget {
 
 /// Final V1 completion screen, shown after defeating the Forest Guardian.
 class FinalCompletion extends StatelessWidget {
-  const FinalCompletion();
+  const FinalCompletion({super.key});
 
   void _replayLevels(BuildContext context) =>
       Navigator.of(context).pop(); // back to Level Select
