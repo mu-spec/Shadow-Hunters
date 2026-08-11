@@ -179,6 +179,32 @@ void main() {
       expect(restart.unlockedLevel, 1);
       expect(restart.completedLevels, isEmpty);
     });
+
+    test('Reset uses the shared instance so it reflects immediately in-session',
+        () async {
+      // The Level Select and the Settings reset must share ONE instance so a
+      // reset immediately clears the state the Level Select reads, and a later
+      // completion cannot re-persist stale pre-reset progress.
+      final levelSelect = SaveService.instance;
+      await levelSelect.load();
+      await levelSelect.completeLevel(3);
+      await levelSelect.completeLevel(15);
+      expect(levelSelect.unlockedLevel, 15);
+      expect(levelSelect.isV1Complete, isTrue);
+
+      // "Settings" reset clears the SAME shared instance.
+      final settingsReset = SaveService.instance;
+      await settingsReset.reset();
+      expect(levelSelect.unlockedLevel, 1);
+      expect(levelSelect.completedLevels, isEmpty);
+      expect(levelSelect.isV1Complete, isFalse);
+
+      // A subsequent completion starts from the reset (cleared) state, so it
+      // does NOT re-persist the old completed set.
+      await levelSelect.completeLevel(1);
+      expect(levelSelect.unlockedLevel, 2);
+      expect(levelSelect.completedLevels, containsAll([1]));
+    });
   });
 
   group('Save failure never crashes', () {

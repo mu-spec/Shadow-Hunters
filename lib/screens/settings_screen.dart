@@ -44,8 +44,10 @@ class SettingsScreen extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     final settings = SettingsScope.of(context);
-    final save = SaveService();
-    // Reset both progress and settings in parallel (best effort).
+    // Reset the SAME shared instance that Level Select reads, so the reset is
+    // reflected immediately in-session (not only after an app restart).
+    final save = SaveService.instance;
+    // Reset both progress and settings (best effort).
     await save.reset();
     await settings.reset();
 

@@ -12,6 +12,12 @@ class SaveService {
   static const _keyUnlockedLevel = 'unlocked_level';
   static const _keyCompletedLevels = 'completed_levels';
 
+  /// A single shared instance so every screen (Level Select, Settings reset)
+  /// reads and writes the SAME in-memory state. This is essential so Reset
+  /// Progress immediately affects what the Level Select screen shows and so a
+  /// later completion cannot re-persist stale pre-reset progress.
+  static final SaveService instance = SaveService();
+
   /// Total number of levels in the game (V1: 5 + Levels 6-8 in 4B +
   /// Levels 9-11 in 5B + Levels 12-14 in 6A + Level 15 boss in 7A).
   static const int totalLevels = 15;
