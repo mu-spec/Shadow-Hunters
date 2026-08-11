@@ -169,37 +169,38 @@ void main() {
 
     testWidgets('Level 15 victory shows the V1 completion screen',
         (tester) async {
-      // Pump the real GameScreen so the completion overlay can render.
+      // Pump the real GameScreen so the completion overlay can render. The
+      // GameWidget mounts its game asynchronously (asset load), so pump inside
+      // runAsync like the other game-mounting tests.
       final settings = SettingsService();
       await settings.load();
       mockLevelAssets(tester);
-      await tester.pumpWidget(
-        SettingsScope(
-          service: settings,
-          child: const MaterialApp(home: GameScreen(levelNumber: 15)),
-        ),
-      );
-      await tester.pump();
-
-      // Grab the game created by GameScreen (mounted in its GameWidget).
-      final game =
-          tester.widget<GameWidget>(find.byType(GameWidget)).game as ShadowHuntersGame;
-      addTearDown(game.dispose);
-
-      // Let the real (mocked) asset load finish, then dismiss the intro.
+      ShadowHuntersGame? game;
       await tester.runAsync(() async {
-        await game.toBeLoaded();
+        await tester.pumpWidget(
+          SettingsScope(
+            service: settings,
+            child: const MaterialApp(home: GameScreen(levelNumber: 15)),
+          ),
+        );
+        await tester.pump();
+        game = tester
+            .widget<GameWidget>(find.byType(GameWidget))
+            .game as ShadowHuntersGame;
+        await game!.toBeLoaded();
       });
       await tester.pump();
-      game.dismissBossIntro();
+      final g = game!;
+      addTearDown(g.dispose);
+
+      // Dismiss the intro, then kill the boss -> victory.
+      g.dismissBossIntro();
+      await tester.pump();
+      g.boss!.takeDamage(bossMaxHealth);
+      g.update(1 / 60);
       await tester.pump();
 
-      // Kill the boss -> victory -> completion screen text appears.
-      game.boss!.takeDamage(bossMaxHealth);
-      game.update(1 / 60);
-      await tester.pump();
-
-      expect(game.statusNotifier.value, GameStatus.victory);
+      expect(g.statusNotifier.value, GameStatus.victory);
       expect(find.text('ENCHANTED FOREST SAVED'), findsOneWidget);
       expect(find.text('V1 COMPLETE'), findsOneWidget);
       expect(find.text('REPLAY LEVELS'), findsOneWidget);
