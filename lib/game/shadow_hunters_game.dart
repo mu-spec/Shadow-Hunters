@@ -17,6 +17,7 @@ import 'entities/enemy.dart';
 import 'entities/forest_guardian.dart';
 import 'entities/goblin.dart';
 import 'entities/hunter.dart';
+import 'entities/hunter_visual.dart';
 import 'entities/skeleton.dart';
 import 'entities/zombie.dart';
 import 'levels/level_data.dart';
@@ -200,6 +201,9 @@ class ShadowHuntersGame extends FlameGame {
       battlefieldHeight: _levelWorldHeight,
       obstacles: levelData.obstacles,
     );
+    // Phase 9A-1: load the Hunter body artwork. If it fails to load, visual
+    // stays null and the procedural fallback is used.
+    hunter.visual = await HunterVisual.load(images);
     await world.add(hunter);
 
     // Build the current level's declared enemy data (Skeleton, Zombie, ...).

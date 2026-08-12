@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart'
 import '../aim/aim_state.dart';
 import '../physics/projectile.dart';
 import '../world/constants.dart';
+import 'hunter_visual.dart';
 
 /// Movement state of the hunter.
 enum HunterState { idle, moving }
@@ -31,6 +32,7 @@ class Hunter extends PositionComponent {
     this.battlefieldWidth = worldWidth,
     this.battlefieldHeight = worldHeight,
     this.obstacles = const [],
+    this.visual,
   })
       : super(
           size: Vector2(48, 76),
@@ -44,6 +46,10 @@ class Hunter extends PositionComponent {
 
   /// Simple static obstacles the Hunter cannot walk through.
   final List<Rect> obstacles;
+
+  /// Optional Phase 9A Hunter body artwork. When set, the artwork replaces the
+  /// procedural placeholder body. When null, the procedural fallback is used.
+  HunterVisual? visual;
 
   /// How many health points the hunter has.
   int health = hunterMaxHealth;
@@ -183,6 +189,16 @@ class Hunter extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
+    // Phase 9A-1: when the Hunter body artwork is available, draw ONLY that
+    // sprite (feet-aligned, facing-correct) and return — the procedural body is
+    // fully suppressed so the two are never rendered together. When visual is
+    // null, the original procedural placeholder is used as the fallback.
+    final v = visual;
+    if (v != null) {
+      _renderArtworkBody(canvas, v);
+      return;
+    }
+
     // PositionComponent local drawing coordinates start at the component's
     // top-left, even when the component is anchored at bottomCenter. Translate
     // to the feet (the component's bottom-center) before using the Hunter's
@@ -257,6 +273,28 @@ class Hunter extends PositionComponent {
     )..layout();
     painter.paint(canvas, Offset(-painter.width / 2, -94));
 
+    canvas.restore();
+  }
+
+  /// Phase 9A-1: draws ONLY the Hunter body sprite. The sprite's bottom edge is
+  /// placed at the feet (local y=0) and the whole figure is mirrored when
+  /// facing left, so it matches the existing gameplay facing direction. The
+  /// gameplay hitbox (48x76) is not changed — only the visual is larger.
+  void _renderArtworkBody(Canvas canvas, HunterVisual v) {
+    final bodyH = v.bodyHeight;
+    final bodyW = v.bodyWidthFor(bodyH);
+
+    canvas.save();
+    // Local coords: (0,0) = feet (bottom-center of the component).
+    canvas.translate(size.x / 2, size.y);
+    if (facing < 0) {
+      canvas.scale(-1, 1); // mirror around the feet origin when facing left
+    }
+    v.body.render(
+      canvas,
+      position: Vector2(-bodyW / 2, -bodyH), // bottom edge at feet
+      size: Vector2(bodyW, bodyH),
+    );
     canvas.restore();
   }
 
