@@ -17,6 +17,7 @@ import 'entities/enemy.dart';
 import 'entities/forest_guardian.dart';
 import 'entities/goblin.dart';
 import 'entities/hunter.dart';
+import 'entities/hunter_visual.dart';
 import 'entities/skeleton.dart';
 import 'entities/zombie.dart';
 import 'levels/level_data.dart';
@@ -200,6 +201,10 @@ class ShadowHuntersGame extends FlameGame {
       battlefieldHeight: _levelWorldHeight,
       obstacles: levelData.obstacles,
     );
+    // Phase 9A static visual prototype: load the Hunter/Bow/Arrow artwork.
+    // If it fails to load, hunter.visual stays null and the procedural
+    // placeholder rendering is used as the fallback.
+    hunter.visual = await HunterVisual.load(images);
     await world.add(hunter);
 
     // Build the current level's declared enemy data (Skeleton, Zombie, ...).
@@ -444,6 +449,10 @@ class ShadowHuntersGame extends FlameGame {
       velocity: dir * shot.speed,
       worldWidth: _levelWorldWidth,
       worldHeight: _levelWorldHeight,
+      // Pass the Phase 9A arrow artwork (if loaded) so the flying projectile
+      // uses the supplied sprite; trajectory/physics are unchanged.
+      arrowSprite: hunter.visual?.arrow,
+      spriteLength: hunter.visual?.arrowLength,
     );
     arrows.add(arrow);
     await world.add(arrow);

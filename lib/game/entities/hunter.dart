@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart'
 import '../aim/aim_state.dart';
 import '../physics/projectile.dart';
 import '../world/constants.dart';
+import 'hunter_visual.dart';
 
 /// Movement state of the hunter.
 enum HunterState { idle, moving }
@@ -31,6 +32,7 @@ class Hunter extends PositionComponent {
     this.battlefieldWidth = worldWidth,
     this.battlefieldHeight = worldHeight,
     this.obstacles = const [],
+    this.visual,
   })
       : super(
           size: Vector2(48, 76),
@@ -44,6 +46,14 @@ class Hunter extends PositionComponent {
 
   /// Simple static obstacles the Hunter cannot walk through.
   final List<Rect> obstacles;
+
+  /// Optional Phase 9A artwork. When null (or [useArtwork] is false), the
+  /// original procedural placeholder rendering is used as the fallback path.
+  HunterVisual? visual;
+
+  /// Master switch to restore the procedural placeholder visuals. Kept for a
+  /// simple development/fallback path if the Phase 9 prototype is reverted.
+  bool useArtwork = true;
 
   /// How many health points the hunter has.
   int health = hunterMaxHealth;
@@ -183,6 +193,14 @@ class Hunter extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
+    // Phase 9A artwork path (static visual prototype). Kept fully separate so
+    // gameplay is untouched and the procedural fallback remains available.
+    final v = visual;
+    if (v != null && useArtwork) {
+      _renderArtwork(canvas, v);
+      return;
+    }
+
     // PositionComponent local drawing coordinates start at the component's
     // top-left, even when the component is anchored at bottomCenter. Translate
     // to the feet (the component's bottom-center) before using the Hunter's
@@ -256,6 +274,88 @@ class Hunter extends PositionComponent {
       textDirection: TextDirection.ltr,
     )..layout();
     painter.paint(canvas, Offset(-painter.width / 2, -94));
+
+    canvas.restore();
+  }
+
+  /// Phase 9A static artwork render: draws the Hunter body sprite (feet-aligned,
+  /// facing-correct), the Bow sprite (separate, rotated to [aim.worldAngle]), and
+  /// a nocked Arrow sprite when aiming. Gameplay is not touched.
+  void _renderArtwork(Canvas canvas, HunterVisual v) {
+    canvas.save();
+    canvas.translate(size.x / 2, size.y); // local coords: (0,0) = feet
+
+    // --- Hunter body sprite, feet at origin, ~2x placeholder height ---
+    final bodyH = v.bodyHeight;
+    final bodyW = v.bodyWidthFor(bodyH);
+    final flip = facing < 0; // face left by mirroring
+    // Draw so the bottom of the sprite is at the feet (y=0). Flip the canvas
+    // horizontally when facing left (Sprite.render has no flip option here).
+    canvas.save();
+    if (flip) {
+      canvas.scale(-1, 1); // mirror around the feet origin (x=0)
+    }
+    v.body.render(
+      canvas,
+      position: Offset(-bodyW / 2, -bodyH),
+      size: Vector2(bodyW, bodyH),
+    );
+    canvas.restore();
+
+    // --- Bow sprite, separate component, grip at the front hand ---
+    // Grip pivot around the torso/hand. Bow rotates to the aim direction.
+    final angle = aim.active ? aim.worldAngle : (facing > 0 ? 0.0 : pi);
+    final bowH = v.bowHeight;
+    final bowW = v.bowWidthFor(bowH);
+    // The bow art is a vertical bow; rotate it about its grip so it points
+    // along the aim direction (up = -y), matching the existing bow pivot math.
+    const gripY = -42.0; // same hand height as the placeholder bow
+    canvas.save();
+    canvas.translate(0, gripY);
+    canvas.rotate(-angle);
+    v.bow.render(
+      canvas,
+      // Center the bow sprite on the grip, slightly in front of the hand.
+      position: Offset(-bowW / 2 + 6, -bowH / 2),
+      size: Vector2(bowW, bowH),
+    );
+    canvas.restore();
+
+    // --- Nocked arrow while aiming, pointing along the firing direction ---
+    if (aim.active && aim.canFire) {
+      final len = v.arrowLength;
+      final ah = v.arrowHeightFor(len);
+      canvas.save();
+      canvas.translate(0, gripY);
+      canvas.rotate(-angle);
+      // Nock sits near the grip; arrow extends forward (+x in rotated frame).
+      v.arrow.render(
+        canvas,
+        position: Offset(-len / 2 - 8, -ah / 2),
+        size: Vector2(len, ah),
+      );
+      canvas.restore();
+    }
+
+    // --- Health bar (kept for gameplay readability) ---
+    const barWidth = 40.0;
+    const barHeight = 6.0;
+    final ratio = (health / hunterMaxHealth).clamp(0.0, 1.0).toDouble();
+    final barY = -bodyH - 10;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(-barWidth / 2, barY, barWidth, barHeight),
+        const Radius.circular(3),
+      ),
+      Paint()..color = const Color(0xFF3A4754),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(-barWidth / 2, barY, barWidth * ratio, barHeight),
+        const Radius.circular(3),
+      ),
+      Paint()..color = const Color(0xFF7FD44E),
+    );
 
     canvas.restore();
   }
