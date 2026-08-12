@@ -75,6 +75,10 @@ class HunterVisual {
   /// fallback path.
   static Future<HunterVisual?> load(Images images) async {
     try {
+      // Flame's Images cache prepends a prefix (default "assets/images/"). Our
+      // assets live at the project root under "assets/" and we pass the full
+      // path, so clear the prefix to avoid "assets/images/assets/hunter.png".
+      images.prefix = '';
       final body = await Sprite.load('assets/hunter.png', images: images);
       final bow = await Sprite.load('assets/bow.png', images: images);
       final arrow = await Sprite.load('assets/arrow.png', images: images);
