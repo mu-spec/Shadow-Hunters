@@ -77,5 +77,12 @@ void main() {
       expect(HunterVisual.bodyHeightDefault, 200);
       expect(HunterVisual.bodyHeightDefault, greaterThan(0));
     });
+
+    test('bow geometry defaults are sane', () {
+      expect(HunterVisual.bowHeightDefault, greaterThan(0));
+      // The grip/riser sits strictly between the top and bottom of the sprite.
+      expect(HunterVisual.bowGripYFraction, greaterThan(0.0));
+      expect(HunterVisual.bowGripYFraction, lessThan(1.0));
+    });
   });
 }

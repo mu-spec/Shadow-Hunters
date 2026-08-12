@@ -196,6 +196,7 @@ class Hunter extends PositionComponent {
     final v = visual;
     if (v != null) {
       _renderArtworkBody(canvas, v);
+      _renderArtworkBow(canvas, v);
       return;
     }
 
@@ -317,7 +318,7 @@ class Hunter extends PositionComponent {
     canvas.translate(pivot.dx, pivot.dy);
     canvas.rotate(-angle);
 
-    // Bow arc (curved back bulging to the -x side). More tension (deeper draw)
+    // Bow arc (curved back bulging to the +x side). More tension (deeper draw)
     // bends the arc slightly more.
     final bowPaint = Paint()
       ..color = const Color(0xFF8A6B3E)
@@ -332,21 +333,115 @@ class Hunter extends PositionComponent {
       bowPaint,
     );
 
+    // Bowstring + nocked arrow (shared with the artwork path).
+    _renderStringAndNockedArrow(
+      canvas,
+      stringX,
+      tipX: restStringX - bend,
+      topY: -16,
+      bottomY: 16,
+    );
+
+    canvas.restore();
+
+    // Trajectory preview only once the minimum pull threshold is reached.
+    if (aim.active && aim.canFire) {
+      _renderTrajectory(canvas, angle);
+    }
+  }
+
+  /// Phase 9A-2: draws the bow artwork in the same rotated frame as the
+  /// procedural fallback, using the sprite's grip/riser as the launch pivot so
+  /// the fired arrow leaves exactly where it is drawn. The string and nocked
+  /// arrow remain procedural (shared), so draw-tension feedback is unchanged
+  /// and the arrow art is replaced in a later milestone.
+  void _renderArtworkBow(Canvas canvas, HunterVisual v) {
+    final angle = aim.active ? aim.worldAngle : (facing > 0 ? 0.0 : pi);
+    final pivot = Offset(0, -42);
+    final restStringX = -10.0;
+    final stringX = aim.active ? restStringX - bowDraw : restStringX;
+
+    canvas.save();
+    canvas.translate(size.x / 2, size.y); // feet origin
+    canvas.translate(pivot.dx, pivot.dy); // grip pivot
+    canvas.rotate(-angle);
+
+    final bow = v.bow;
+    double tipX, topY, bottomY;
+    if (bow != null) {
+      final bowH = v.bowHeight;
+      final bowW = v.bowWidthFor(bowH);
+      final gripY = v.bowGripYFraction * bowH; // distance from top -> grip
+      // Place the grip/riser exactly on the pivot (0,0).
+      bow.render(
+        canvas,
+        position: Vector2(-bowW / 2, -gripY),
+        size: Vector2(bowW, bowH),
+      );
+      // String attaches to the two limb tips (top and bottom of the sprite).
+      tipX = -bowW / 2 + 2;
+      topY = -gripY;
+      bottomY = bowH - gripY;
+    } else {
+      // No bow sprite: fall back to the procedural arc.
+      final bowPaint = Paint()
+        ..color = const Color(0xFF8A6B3E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5;
+      final bend = aim.active ? 2.0 + bowDraw * 0.25 : 2.0;
+      canvas.drawArc(
+        Rect.fromLTWH(-10 - bend, -16, bowLength + bend, 32),
+        -pi / 2,
+        pi,
+        false,
+        bowPaint,
+      );
+      tipX = restStringX - bend;
+      topY = -16;
+      bottomY = 16;
+    }
+
+    _renderStringAndNockedArrow(canvas, stringX,
+        tipX: tipX, topY: topY, bottomY: bottomY);
+
+    canvas.restore();
+
+    // _renderTrajectory expects the canvas at the Hunter's feet origin (same as
+    // the procedural path). The artwork bow's save/restore above leaves the
+    // canvas back at the component's top-left, so translate to the feet first.
+    canvas.save();
+    canvas.translate(size.x / 2, size.y);
+    if (aim.active && aim.canFire) {
+      _renderTrajectory(canvas, angle);
+    }
+    canvas.restore();
+  }
+
+  /// Draws the bowstring (from the two limb tips down to the drawn nock) and
+  /// the nocked arrow (shaft, arrowhead, fletching) in the already-rotated bow
+  /// frame. Shared by the procedural and artwork paths so the draw-tension and
+  /// nocked arrow behave identically.
+  ///
+  /// [stringX] is the drawn-back string/nock x in the bow frame (pulled back by
+  /// [bowDraw] while aiming). [tipX]/[topY]/[bottomY] are the two bow tips where
+  /// the string attaches.
+  void _renderStringAndNockedArrow(
+    Canvas canvas,
+    double stringX, {
+    required double tipX,
+    required double topY,
+    required double bottomY,
+  }) {
     // Bowstring (from one bow tip to the other, dipping to the drawn nock).
     final stringPaint = Paint()
       ..color = const Color(0xFFD8C9A8)
       ..strokeWidth = 2;
-    // Bow tips are roughly at the arc ends.
-    final tipY = 16.0;
-    canvas.drawLine(
-        Offset(restStringX - bend, -tipY), Offset(stringX, 0), stringPaint);
-    canvas.drawLine(
-        Offset(restStringX - bend, tipY), Offset(stringX, 0), stringPaint);
+    canvas.drawLine(Offset(tipX, topY), Offset(stringX, 0), stringPaint);
+    canvas.drawLine(Offset(tipX, bottomY), Offset(stringX, 0), stringPaint);
 
     // Temporary nocked Arrow while aiming: attached to the string, tip pointing
     // along the firing direction (+x in this rotated frame).
-    final nocked = aim.active;
-    final arrowLen = nocked ? arrowLength : arrowLength * 0.6;
+    final arrowLen = aim.active ? arrowLength : arrowLength * 0.6;
     final arrowStartX = stringX; // nock at the drawn string
     final arrowPaint = Paint()
       ..color = const Color(0xFFB8A06A)
@@ -374,13 +469,6 @@ class Hunter extends PositionComponent {
         ..close(),
       fletchPaint,
     );
-
-    canvas.restore();
-
-    // Trajectory preview only once the minimum pull threshold is reached.
-    if (aim.active && aim.canFire) {
-      _renderTrajectory(canvas, angle);
-    }
   }
 
   /// Draws dots along the projectile path for the current aim + power.
