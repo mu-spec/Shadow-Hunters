@@ -297,7 +297,7 @@ class Hunter extends PositionComponent {
     }
     v.body.render(
       canvas,
-      position: Offset(-bodyW / 2, -bodyH),
+      position: Vector2(-bodyW / 2, -bodyH),
       size: Vector2(bodyW, bodyH),
     );
     canvas.restore();
@@ -316,7 +316,7 @@ class Hunter extends PositionComponent {
     v.bow.render(
       canvas,
       // Center the bow sprite on the grip, slightly in front of the hand.
-      position: Offset(-bowW / 2 + 6, -bowH / 2),
+      position: Vector2(-bowW / 2 + 6, -bowH / 2),
       size: Vector2(bowW, bowH),
     );
     canvas.restore();
@@ -331,7 +331,7 @@ class Hunter extends PositionComponent {
       // Nock sits near the grip; arrow extends forward (+x in rotated frame).
       v.arrow.render(
         canvas,
-        position: Offset(-len / 2 - 8, -ah / 2),
+        position: Vector2(-len / 2 - 8, -ah / 2),
         size: Vector2(len, ah),
       );
       canvas.restore();

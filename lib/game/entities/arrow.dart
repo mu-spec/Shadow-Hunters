@@ -2,7 +2,6 @@ import 'dart:math' show atan2;
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import 'package:flame/sprite.dart' show Sprite;
 
 import '../world/constants.dart';
 
@@ -118,7 +117,7 @@ class Arrow extends PositionComponent {
       canvas.rotate(rotation);
       sprite.render(
         canvas,
-        position: Offset(-len / 2, -ah / 2),
+        position: Vector2(-len / 2, -ah / 2),
         size: Vector2(len, ah),
       );
       canvas.restore();
