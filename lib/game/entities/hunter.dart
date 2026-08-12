@@ -372,7 +372,7 @@ class Hunter extends PositionComponent {
     if (bow != null) {
       final bowH = v.bowHeight;
       final bowW = v.bowWidthFor(bowH);
-      final gripY = v.bowGripYFraction * bowH; // distance from top -> grip
+      final gripY = HunterVisual.bowGripYFraction * bowH; // distance from top -> grip
       // Place the grip/riser exactly on the pivot (0,0).
       bow.render(
         canvas,

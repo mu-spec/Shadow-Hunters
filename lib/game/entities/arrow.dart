@@ -2,7 +2,6 @@ import 'dart:math' show atan2;
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import 'package:flame/sprite.dart' show Sprite;
 
 import '../world/constants.dart';
 
