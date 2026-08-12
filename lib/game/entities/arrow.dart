@@ -14,7 +14,7 @@ import '../world/constants.dart';
 ///   then is removed. A limited total lifetime cleans up any arrow that never
 ///   hits (e.g. fired high and clipped a wall).
 class Arrow extends PositionComponent {
-  Arrow({required super.position, required Vector2 velocity, this.worldWidth = 2560, this.worldHeight = 720, this.arrowSprite, this.spriteLength})
+  Arrow({required super.position, required Vector2 velocity, this.worldWidth = 2560, this.worldHeight = 720})
       : _velocity = velocity.clone(),
         // Anchor at CENTER so `position` is the visual center of the arrow and
         // rotation spins around the shaft center (not a corner). This makes the
@@ -30,12 +30,6 @@ class Arrow extends PositionComponent {
   final double worldWidth;
   final double worldHeight;
   final Vector2 _velocity;
-
-  /// Optional Phase 9A arrow artwork. When null, the procedural arrow is drawn.
-  final Sprite? arrowSprite;
-
-  /// Desired on-screen length of the arrow sprite (world px). Aspect preserved.
-  final double? spriteLength;
 
   /// Current rotation of the arrow (radians), following the velocity vector.
   /// Named `rotation` (not `angle`) so it doesn't shadow PositionComponent.angle.
@@ -104,25 +98,6 @@ class Arrow extends PositionComponent {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-
-    // Phase 9A artwork path: draw the arrow sprite, rotated to travel direction.
-    final sprite = arrowSprite;
-    if (sprite != null) {
-      final len = spriteLength ?? arrowLength;
-      final img = sprite.image;
-      final w = img.width.toDouble();
-      final h = img.height.toDouble();
-      final ah = w > 0 ? len * (h / w) : len;
-      canvas.save();
-      canvas.rotate(rotation);
-      sprite.render(
-        canvas,
-        position: Vector2(-len / 2, -ah / 2),
-        size: Vector2(len, ah),
-      );
-      canvas.restore();
-      return;
-    }
 
     canvas.save();
     canvas.rotate(rotation);
