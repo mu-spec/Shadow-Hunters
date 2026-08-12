@@ -13,6 +13,7 @@ class HunterVisual {
   const HunterVisual({
     required this.body,
     this.bow,
+    this.arrow,
     this.bodyHeight = bodyHeightDefault,
     this.bowHeight = bowHeightDefault,
   });
@@ -38,6 +39,11 @@ class HunterVisual {
   /// the procedural bow arc is used as a fallback.
   final Sprite? bow;
 
+  /// The arrow sprite, oriented horizontally pointing toward +x (nock at the
+  /// left edge, tip at the right edge, shaft center at the image center). When
+  /// null, the procedural nocked/flying arrow is used as a fallback.
+  final Sprite? arrow;
+
   /// Desired on-screen body height (world px). Aspect ratio preserved.
   final double bodyHeight;
 
@@ -61,6 +67,17 @@ class HunterVisual {
     return h > 0 ? height * (w / h) : height;
   }
 
+  /// Computed arrow height for a given on-screen arrow [length], preserving the
+  /// source aspect ratio. The arrow's shaft center is at the image center, so
+  /// height = length / (width/height). Returns 0 if the arrow sprite is null.
+  double arrowHeightFor(double length) {
+    final img = arrow?.image;
+    if (img == null) return 0;
+    final w = img.width.toDouble();
+    final h = img.height.toDouble();
+    return w > 0 ? length * (h / w) : 0;
+  }
+
   /// Loads the Hunter body and bow sprites through the game's image cache.
   /// Returns null if the body fails to load (procedural fallback). The bow is
   /// optional: if it fails, only the procedural arc is used.
@@ -76,7 +93,13 @@ class HunterVisual {
       } catch (_) {
         bow = null;
       }
-      return HunterVisual(body: body, bow: bow);
+      Sprite? arrow;
+      try {
+        arrow = await Sprite.load('assets/arrow.png', images: images);
+      } catch (_) {
+        arrow = null;
+      }
+      return HunterVisual(body: body, bow: bow, arrow: arrow);
     } catch (_) {
       return null;
     }

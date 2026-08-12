@@ -5,6 +5,15 @@ import 'package:shadow_hunters/game/entities/arrow.dart';
 import 'package:shadow_hunters/game/world/constants.dart';
 
 void main() {
+  test('Arrow defaults to no sprite (procedural fallback)', () {
+    final arrow = Arrow(
+      position: Vector2(200, groundY - 200),
+      velocity: Vector2(300, -300),
+    );
+    expect(arrow.sprite, isNull);
+    expect(arrow.spriteHeight, 0);
+  });
+
   test('Arrow applies gravity, follows velocity rotation, and curves', () {
     final arrow = Arrow(
       position: Vector2(200, groundY - 200),

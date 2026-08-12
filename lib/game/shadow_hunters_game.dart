@@ -448,6 +448,7 @@ class ShadowHuntersGame extends FlameGame {
       velocity: dir * shot.speed,
       worldWidth: _levelWorldWidth,
       worldHeight: _levelWorldHeight,
+      sprite: hunter.visual?.arrow,
     );
     arrows.add(arrow);
     await world.add(arrow);

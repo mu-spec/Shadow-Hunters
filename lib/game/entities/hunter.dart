@@ -333,7 +333,8 @@ class Hunter extends PositionComponent {
       bowPaint,
     );
 
-    // Bowstring + nocked arrow (shared with the artwork path).
+    // Bowstring + nocked arrow (shared with the artwork path). No visual here,
+    // so a procedural arrow is drawn.
     _renderStringAndNockedArrow(
       canvas,
       stringX,
@@ -402,7 +403,7 @@ class Hunter extends PositionComponent {
     }
 
     _renderStringAndNockedArrow(canvas, stringX,
-        tipX: tipX, topY: topY, bottomY: bottomY);
+        tipX: tipX, topY: topY, bottomY: bottomY, v: v);
 
     canvas.restore();
 
@@ -418,19 +419,21 @@ class Hunter extends PositionComponent {
   }
 
   /// Draws the bowstring (from the two limb tips down to the drawn nock) and
-  /// the nocked arrow (shaft, arrowhead, fletching) in the already-rotated bow
-  /// frame. Shared by the procedural and artwork paths so the draw-tension and
-  /// nocked arrow behave identically.
+  /// the nocked arrow (sprite, or a procedural shaft/head/fletching) in the
+  /// already-rotated bow frame. Shared by the procedural and artwork paths so
+  /// the draw-tension and nocked arrow behave identically.
   ///
   /// [stringX] is the drawn-back string/nock x in the bow frame (pulled back by
   /// [bowDraw] while aiming). [tipX]/[topY]/[bottomY] are the two bow tips where
-  /// the string attaches.
+  /// the string attaches. [v] supplies the optional arrow sprite; when null (or
+  /// when it has no arrow), the procedural arrow is drawn.
   void _renderStringAndNockedArrow(
     Canvas canvas,
     double stringX, {
     required double tipX,
     required double topY,
     required double bottomY,
+    HunterVisual? v,
   }) {
     // Bowstring (from one bow tip to the other, dipping to the drawn nock).
     final stringPaint = Paint()
@@ -440,35 +443,49 @@ class Hunter extends PositionComponent {
     canvas.drawLine(Offset(tipX, bottomY), Offset(stringX, 0), stringPaint);
 
     // Temporary nocked Arrow while aiming: attached to the string, tip pointing
-    // along the firing direction (+x in this rotated frame).
+    // along the firing direction (+x in this rotated frame). Uses the sprite
+    // when available, otherwise a procedural fallback.
     final arrowLen = aim.active ? arrowLength : arrowLength * 0.6;
     final arrowStartX = stringX; // nock at the drawn string
-    final arrowPaint = Paint()
-      ..color = const Color(0xFFB8A06A)
-      ..strokeWidth = 3;
-    canvas.drawLine(
-        Offset(arrowStartX, 0), Offset(arrowStartX + arrowLen, 0), arrowPaint);
-    // Arrowhead.
-    final headPaint = Paint()..color = const Color(0xFFD8E0E8);
-    final headX = arrowStartX + arrowLen;
-    canvas.drawPath(
-      Path()
-        ..moveTo(headX, -5)
-        ..lineTo(headX + 10, 0)
-        ..lineTo(headX, 5)
-        ..close(),
-      headPaint,
-    );
-    // Fletching at the nock.
-    final fletchPaint = Paint()..color = const Color(0xFF7FD44E);
-    canvas.drawPath(
-      Path()
-        ..moveTo(arrowStartX, 0)
-        ..lineTo(arrowStartX - 7, -5)
-        ..lineTo(arrowStartX - 7, 5)
-        ..close(),
-      fletchPaint,
-    );
+    final arrowSprite = v?.arrow;
+    if (arrowSprite != null) {
+      // Arrow's nock is at its left edge and the shaft center is at its vertical
+      // middle, so place the image with its left edge at the nock and its top so
+      // the shaft center sits on the firing axis (y=0).
+      final arrowH = v!.arrowHeightFor(arrowLen);
+      arrowSprite.render(
+        canvas,
+        position: Vector2(arrowStartX, -arrowH / 2),
+        size: Vector2(arrowLen, arrowH),
+      );
+    } else {
+      final arrowPaint = Paint()
+        ..color = const Color(0xFFB8A06A)
+        ..strokeWidth = 3;
+      canvas.drawLine(
+          Offset(arrowStartX, 0), Offset(arrowStartX + arrowLen, 0), arrowPaint);
+      // Arrowhead.
+      final headPaint = Paint()..color = const Color(0xFFD8E0E8);
+      final headX = arrowStartX + arrowLen;
+      canvas.drawPath(
+        Path()
+          ..moveTo(headX, -5)
+          ..lineTo(headX + 10, 0)
+          ..lineTo(headX, 5)
+          ..close(),
+        headPaint,
+      );
+      // Fletching at the nock.
+      final fletchPaint = Paint()..color = const Color(0xFF7FD44E);
+      canvas.drawPath(
+        Path()
+          ..moveTo(arrowStartX, 0)
+          ..lineTo(arrowStartX - 7, -5)
+          ..lineTo(arrowStartX - 7, 5)
+          ..close(),
+        fletchPaint,
+      );
+    }
   }
 
   /// Draws dots along the projectile path for the current aim + power.
