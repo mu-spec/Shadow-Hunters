@@ -88,11 +88,23 @@ class Hunter extends PositionComponent {
 
   static const double aimTouchMargin = 10;
 
-  /// The bow pivot is drawn at local `(0, -42)` from the feet; the string/nock
+  /// The bow pivot is drawn at local `(0, _handY)` from the feet; the string/nock
   /// sits 10 units back (opposite the firing direction) from the pivot, which
   /// is exactly where the drawn bowstring/arrow-nock is in [render].
+  /// The front-hand height above the feet that the bow is held at. When the
+  /// Phase 9A artwork is active this scales with the (larger) body height so
+  /// the hand sits in the right place on a real phone; otherwise it falls back
+  /// to the original -42px of the small procedural Hunter. The projectile
+  /// launch math uses this same hand height so the fired arrow visually leaves
+  /// the corrected bow/string.
+  double get _handY {
+    final v = visual;
+    if (v != null && useArtwork) return -v.bodyHeight * v.handHeightFraction;
+    return -42;
+  }
+
   Vector2 bowReleasePositionFor(double angle) =>
-      position + Vector2(0, -42) - Vector2(cos(angle), -sin(angle)) * 10;
+      position + Vector2(0, _handY) - Vector2(cos(angle), -sin(angle)) * 10;
 
   /// How far the bowstring is pulled back (draw tension) while aiming, in world
   /// units. Derived from the current pull power (0..1) so greater pull visually
@@ -305,10 +317,11 @@ class Hunter extends PositionComponent {
     canvas.restore();
 
     // --- Bow + nocked arrow, rotated around the front-hand grip ---
-    // Hand pivot matches the existing bow release math: (0, -42) from the feet.
-    // When aiming the bow follows aim.worldAngle; when idle it drops to a
-    // natural resting tilt so the character never looks permanently aiming.
-    const handY = -42.0;
+    // Hand pivot matches the projectile launch math (bowReleasePositionFor), so
+    // the bow, nocked arrow, and fired arrow all share the same origin. When
+    // aiming the bow follows aim.worldAngle; when idle it drops to a natural
+    // resting tilt so the character never looks permanently aiming.
+    final handY = _handY;
     final angle = aim.active ? aim.worldAngle : _idleBowAngle();
     final bowH = v.bowHeight;
     final bowW = v.bowWidthFor(bowH);

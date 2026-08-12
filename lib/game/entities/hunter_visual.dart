@@ -18,6 +18,7 @@ class HunterVisual {
     this.bowHeight = bowHeightDefault,
     this.arrowLength = arrowLengthDefault,
     this.bowGripYFraction = bowGripYFractionDefault,
+    this.handHeightFraction = handHeightFractionDefault,
   });
 
   /// Default body height. The Phase 9A artwork is rendered significantly larger
@@ -37,6 +38,12 @@ class HunterVisual {
   /// aligns the bow grip with the front hand and keeps the (short) lower limb
   /// above the feet instead of hanging below them.
   static const double bowGripYFractionDefault = 0.74;
+
+  /// How high the front hand sits above the feet, as a fraction of the Hunter
+  /// body height. The old placeholder used a fixed -42px for a ~76px body; the
+  /// enlarged Phase 9A artwork scales this proportionally so the hand (and the
+  /// bow/arrow attached to it) sit at the correct height on a real phone.
+  static const double handHeightFractionDefault = 0.55;
 
   /// Hunter body sprite.
   final Sprite body;
@@ -59,6 +66,9 @@ class HunterVisual {
   /// Where the bow grip sits within the bow sprite (fraction of height from
   /// top). This is the pivot the bow rotates around at the Hunter's hand.
   final double bowGripYFraction;
+
+  /// How high the front hand sits above the feet (fraction of body height).
+  final double handHeightFraction;
 
   /// Computed body width from its source aspect ratio.
   double bodyWidthFor(double height) {

@@ -92,6 +92,8 @@ void main() {
       expect(HunterVisual.arrowLengthDefault, 170);
       expect(HunterVisual.bowGripYFractionDefault, greaterThan(0));
       expect(HunterVisual.bowGripYFractionDefault, lessThan(1));
+      expect(HunterVisual.handHeightFractionDefault, greaterThan(0));
+      expect(HunterVisual.handHeightFractionDefault, lessThan(1));
     });
   });
 }
