@@ -3,11 +3,11 @@ import 'package:flame/sprite.dart' show Sprite;
 
 /// Holds the Phase 9A Hunter artwork.
 ///
-/// This milestone (9A-2) integrates the BODY sprite (9A-1) plus the BOW sprite.
-/// The bow is rendered in the artwork path, aligned so its grip/riser sits on
-/// the same pivot the gameplay uses for the arrow launch origin, keeping the
-/// fired arrow visually continuous with the bow. The bow's draw-tension string
-/// and nocked arrow stay procedural (arrow art is a later milestone). Gameplay
+/// This milestone (9A) integrates the BODY sprite (9A-1), the BOW sprite
+/// (9A-2), and the ARROW sprite (9A-3). The bow is rendered in the artwork
+/// path, aligned so its grip/riser sits on the same pivot the gameplay uses
+/// for the arrow launch origin, keeping the fired arrow visually continuous
+/// with the bow. The bow's draw-tension string stays procedural. Gameplay
 /// (hitbox, movement, aiming math, combat) is untouched.
 class HunterVisual {
   const HunterVisual({
@@ -78,9 +78,10 @@ class HunterVisual {
     return w > 0 ? length * (h / w) : 0;
   }
 
-  /// Loads the Hunter body and bow sprites through the game's image cache.
-  /// Returns null if the body fails to load (procedural fallback). The bow is
-  /// optional: if it fails, only the procedural arc is used.
+  /// Loads the Hunter body, bow and arrow sprites through the game's image
+  /// cache. Returns null if the body fails to load (procedural fallback). The
+  /// bow and arrow are optional: if either fails, only its procedural fallback
+  /// is used.
   static Future<HunterVisual?> load(Images images) async {
     try {
       // Flame's Images cache prepends a prefix (default "assets/images/"); our
