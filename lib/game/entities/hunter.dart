@@ -278,19 +278,21 @@ class Hunter extends PositionComponent {
     canvas.restore();
   }
 
-  /// Phase 9A static artwork render: draws the Hunter body sprite (feet-aligned,
-  /// facing-correct), the Bow sprite (separate, rotated to [aim.worldAngle]), and
-  /// a nocked Arrow sprite when aiming. Gameplay is not touched.
+  /// Phase 9A static artwork render: draws ONLY the Hunter body sprite
+  /// (feet-aligned, facing-correct), the Bow sprite (separate, rotated around
+  /// the front-hand grip), and a nocked Arrow sprite when aiming. When artwork
+  /// is enabled the old procedural body is NOT rendered at all — this method
+  /// returns before any stick-style body is drawn. Gameplay is untouched.
   void _renderArtwork(Canvas canvas, HunterVisual v) {
     canvas.save();
     canvas.translate(size.x / 2, size.y); // local coords: (0,0) = feet
 
-    // --- Hunter body sprite, feet at origin, ~2x placeholder height ---
+    // --- Hunter body sprite, feet at origin, ~2x original visual height ---
     final bodyH = v.bodyHeight;
     final bodyW = v.bodyWidthFor(bodyH);
     final flip = facing < 0; // face left by mirroring
-    // Draw so the bottom of the sprite is at the feet (y=0). Flip the canvas
-    // horizontally when facing left (Sprite.render has no flip option here).
+    // Draw so the bottom of the sprite sits exactly at the feet (y=0). Mirror
+    // the canvas horizontally when facing left (Sprite.render has no flip).
     canvas.save();
     if (flip) {
       canvas.scale(-1, 1); // mirror around the feet origin (x=0)
@@ -302,40 +304,45 @@ class Hunter extends PositionComponent {
     );
     canvas.restore();
 
-    // --- Bow sprite, separate component, grip at the front hand ---
-    // Grip pivot around the torso/hand. Bow rotates to the aim direction.
-    final angle = aim.active ? aim.worldAngle : (facing > 0 ? 0.0 : pi);
+    // --- Bow + nocked arrow, rotated around the front-hand grip ---
+    // Hand pivot matches the existing bow release math: (0, -42) from the feet.
+    // When aiming the bow follows aim.worldAngle; when idle it drops to a
+    // natural resting tilt so the character never looks permanently aiming.
+    const handY = -42.0;
+    final angle = aim.active ? aim.worldAngle : _idleBowAngle();
     final bowH = v.bowHeight;
     final bowW = v.bowWidthFor(bowH);
-    // The bow art is a vertical bow; rotate it about its grip so it points
-    // along the aim direction (up = -y), matching the existing bow pivot math.
-    const gripY = -42.0; // same hand height as the placeholder bow
+    // Grip point within the bow sprite (fraction of height from the top). The
+    // sprite is drawn so THIS point sits at the hand, and rotation happens
+    // around the hand — not around the bow's image center.
+    final gripOffsetY = v.bowGripYFraction * bowH;
+
     canvas.save();
-    canvas.translate(0, gripY);
+    canvas.translate(0, handY);
     canvas.rotate(-angle);
+
+    // Bow: top-left of sprite placed so the grip aligns with the hand.
     v.bow.render(
       canvas,
-      // Center the bow sprite on the grip, slightly in front of the hand.
-      position: Vector2(-bowW / 2 + 6, -bowH / 2),
+      position: Vector2(-bowW / 2, -gripOffsetY),
       size: Vector2(bowW, bowH),
     );
-    canvas.restore();
 
-    // --- Nocked arrow while aiming, pointing along the firing direction ---
+    // Nocked arrow while aiming, aligned to the bow string. Its nock sits at
+    // the drawn string (pulled back by bowDraw), matching the fired arrow's
+    // launch origin so the projectile appears to leave the bow.
     if (aim.active && aim.canFire) {
       final len = v.arrowLength;
       final ah = v.arrowHeightFor(len);
-      canvas.save();
-      canvas.translate(0, gripY);
-      canvas.rotate(-angle);
-      // Nock sits near the grip; arrow extends forward (+x in rotated frame).
+      final stringX = -(10 + bowDraw); // nock at the drawn string (launch math)
       v.arrow.render(
         canvas,
-        position: Vector2(-len / 2 - 8, -ah / 2),
+        position: Vector2(stringX, -ah / 2),
         size: Vector2(len, ah),
       );
-      canvas.restore();
     }
+
+    canvas.restore();
 
     // --- Health bar (kept for gameplay readability) ---
     const barWidth = 40.0;
@@ -358,6 +365,14 @@ class Hunter extends PositionComponent {
     );
 
     canvas.restore();
+  }
+
+  /// A natural resting bow tilt for when the Hunter is not aiming, so the
+  /// static prototype does not look stuck in an exaggerated aiming pose. The
+  /// bow leans slightly toward the facing direction (down-forward).
+  double _idleBowAngle() {
+    const tilt = 0.7; // ~40° tilt from vertical, down-forward
+    return facing > 0 ? -tilt : tilt;
   }
 
   /// Renders the bow at the hunter's hand, rotating it to the aim direction.

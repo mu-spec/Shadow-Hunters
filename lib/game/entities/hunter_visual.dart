@@ -17,16 +17,26 @@ class HunterVisual {
     this.bodyHeight = bodyHeightDefault,
     this.bowHeight = bowHeightDefault,
     this.arrowLength = arrowLengthDefault,
+    this.bowGripYFraction = bowGripYFractionDefault,
   });
 
-  /// Default body height (~2x the placeholder Hunter height of 76).
-  static const double bodyHeightDefault = 152;
+  /// Default body height. The Phase 9A artwork is rendered significantly larger
+  /// than the original prototype — approximately 2x the ORIGINAL procedural
+  /// Hunter's visual height (~76), so the character reads as a proper size on a
+  /// real phone. Aspect ratio is preserved (computed from the source image).
+  static const double bodyHeightDefault = 200;
 
   /// Default bow height.
-  static const double bowHeightDefault = 150;
+  static const double bowHeightDefault = 160;
 
   /// Default arrow length.
-  static const double arrowLengthDefault = 150;
+  static const double arrowLengthDefault = 170;
+
+  /// Where the Hunter's hand grips the bow, as a fraction of the bow sprite's
+  /// height measured from the TOP of the sprite. Placing the grip at this point
+  /// aligns the bow grip with the front hand and keeps the (short) lower limb
+  /// above the feet instead of hanging below them.
+  static const double bowGripYFractionDefault = 0.74;
 
   /// Hunter body sprite.
   final Sprite body;
@@ -45,6 +55,10 @@ class HunterVisual {
 
   /// Desired on-screen nocked/fired arrow length (world px). Aspect preserved.
   final double arrowLength;
+
+  /// Where the bow grip sits within the bow sprite (fraction of height from
+  /// top). This is the pivot the bow rotates around at the Hunter's hand.
+  final double bowGripYFraction;
 
   /// Computed body width from its source aspect ratio.
   double bodyWidthFor(double height) {

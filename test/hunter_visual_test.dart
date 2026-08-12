@@ -87,9 +87,11 @@ void main() {
       // direct computation against the constants.
       // (Full sprite construction needs a running engine, so we only check the
       // default constants used for the artwork path.)
-      expect(HunterVisual.bodyHeightDefault, 152);
-      expect(HunterVisual.bowHeightDefault, 150);
-      expect(HunterVisual.arrowLengthDefault, 150);
+      expect(HunterVisual.bodyHeightDefault, 200);
+      expect(HunterVisual.bowHeightDefault, 160);
+      expect(HunterVisual.arrowLengthDefault, 170);
+      expect(HunterVisual.bowGripYFractionDefault, greaterThan(0));
+      expect(HunterVisual.bowGripYFractionDefault, lessThan(1));
     });
   });
 }
